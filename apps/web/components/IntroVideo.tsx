@@ -10,7 +10,6 @@ export function IntroVideo() {
     const router = useRouter();
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const [showSkip, setShowSkip] = useState(false);
-    const [showUnmute, setShowUnmute] = useState(false);
     const [isLeaving, setIsLeaving] = useState(false);
 
     const preloadLink = useMemo(() => {
@@ -48,13 +47,7 @@ export function IntroVideo() {
                 video.muted = false;
                 await video.play();
             } catch {
-                video.muted = true;
-                try {
-                    await video.play();
-                    setShowUnmute(true);
-                } catch {
-                    setShowUnmute(true);
-                }
+                return;
             }
         };
 
@@ -86,20 +79,6 @@ export function IntroVideo() {
         window.setTimeout(() => router.replace('/lobby'), 500);
     };
 
-    const handleUnmute = async () => {
-        const video = videoRef.current;
-
-        if (!video) {
-            return;
-        }
-
-        video.muted = false;
-        setShowUnmute(false);
-        await video.play().catch(() => {
-            setShowUnmute(true);
-        });
-    };
-
     return (
         <main className="page-shell relative flex min-h-screen items-center justify-center overflow-hidden bg-black text-white">
             <video
@@ -118,16 +97,6 @@ export function IntroVideo() {
             <div className="absolute left-6 top-6 rounded-full border border-white/20 bg-black/35 px-4 py-2 text-[11px] uppercase tracking-[0.3em] text-zinc-300 backdrop-blur-md md:left-10 md:top-10">
                 Wrestle Rumble Intro
             </div>
-
-            {showUnmute ? (
-                <button
-                    type="button"
-                    onClick={handleUnmute}
-                    className="metal-panel chrome-border absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full px-6 py-3 text-sm font-semibold uppercase tracking-[0.24em] text-white"
-                >
-                    Click to unmute 🔊
-                </button>
-            ) : null}
 
             <button
                 type="button"

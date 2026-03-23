@@ -31,6 +31,7 @@ body {
         linear-gradient(180deg, #12121a 0%, #0a0a0f 100%);
     color: var(--text-primary);
     font-family: var(--font-body), Arial, Helvetica, sans-serif;
+    padding-bottom: 96px;
 }
 
 a {
