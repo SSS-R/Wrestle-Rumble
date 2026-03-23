@@ -23,7 +23,6 @@ Wrestle-Rumble/
 ├─ apps/
 │  ├─ api/              # FastAPI backend
 │  └─ web/              # Next.js frontend
-├─ docs/                # Product, design, and planning docs
 ├─ intro video/         # Source brand/video assets
 ├─ .env.example         # Shared environment variable template
 ├─ .gitignore
