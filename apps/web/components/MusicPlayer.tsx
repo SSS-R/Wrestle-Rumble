@@ -18,7 +18,7 @@ const tracks: Track[] = [
     },
     {
         title: 'Voices',
-        artist: 'Randy Orton ft. Rev Theory',
+        artist: 'Randy Orton',
         src: '/music/randy-orton-voices.mp3',
     },
     {
@@ -52,6 +52,7 @@ export function MusicPlayer() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(true);
     const [isReady, setIsReady] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(false);
 
     const currentTrack = useMemo(() => tracks[currentIndex], [currentIndex]);
 
@@ -128,8 +129,24 @@ export function MusicPlayer() {
                 onEnded={shuffleToNextTrack}
             />
 
-            <div className="metal-panel chrome-border fixed bottom-4 left-4 right-4 z-30 rounded-2xl px-4 py-3 md:left-auto md:right-6 md:w-[380px]">
-                <div className="flex items-center justify-between gap-4">
+            <div
+                className="fixed bottom-4 right-0 z-30"
+                onMouseEnter={() => setIsExpanded(true)}
+                onMouseLeave={() => setIsExpanded(false)}
+            >
+                <div
+                    className={`metal-panel chrome-border flex items-center gap-4 rounded-l-2xl px-4 py-3 transition-transform duration-300 ${isExpanded ? 'translate-x-0' : 'translate-x-[calc(100%-64px)]'
+                        }`}
+                >
+                    <button
+                        type="button"
+                        onClick={() => setIsExpanded((current) => !current)}
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/35 text-2xl text-[var(--accent-gold)]"
+                        aria-label="Toggle music tray"
+                    >
+                        💿
+                    </button>
+
                     <div className="min-w-0">
                         <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--text-secondary)]">
                             Arena Music
@@ -142,7 +159,7 @@ export function MusicPlayer() {
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 pr-1">
                         <button
                             type="button"
                             onClick={handleTogglePlayback}
@@ -155,7 +172,7 @@ export function MusicPlayer() {
                             onClick={handleNextTrack}
                             className="rounded-full bg-[var(--accent-raw)] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-white"
                         >
-                            Shuffle Next
+                            Next
                         </button>
                     </div>
                 </div>

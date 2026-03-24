@@ -2,7 +2,6 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Inter, Oswald, Russo_One } from 'next/font/google';
 import { ReactNode } from 'react';
-import { MusicPlayer } from '../components/MusicPlayer';
 
 const inter = Inter({
     subsets: ['latin'],
@@ -32,10 +31,7 @@ type RootLayoutProps = {
 export default function RootLayout({ children }: RootLayoutProps) {
     return (
         <html lang="en">
-            <body className={`${inter.variable} ${oswald.variable} ${russoOne.variable}`}>
-                {children}
-                <MusicPlayer />
-            </body>
+            <body className={`${inter.variable} ${oswald.variable} ${russoOne.variable}`}>{children}</body>
         </html>
     );
 }

@@ -11,6 +11,18 @@ export function IntroVideo() {
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const [showSkip, setShowSkip] = useState(false);
     const [isLeaving, setIsLeaving] = useState(false);
+    const [hasStarted, setHasStarted] = useState(false);
+
+    const stopIntroPlayback = () => {
+        const video = videoRef.current;
+
+        if (!video) {
+            return;
+        }
+
+        video.pause();
+        video.currentTime = 0;
+    };
 
     const preloadLink = useMemo(() => {
         if (typeof document === 'undefined') {
@@ -35,26 +47,8 @@ export function IntroVideo() {
             document.head.appendChild(preloadLink);
         }
 
-        const skipHintTimer = window.setTimeout(() => setShowSkip(true), 2000);
-        const video = videoRef.current;
-
-        const tryPlay = async () => {
-            if (!video) {
-                return;
-            }
-
-            try {
-                video.muted = false;
-                await video.play();
-            } catch {
-                return;
-            }
-        };
-
-        void tryPlay();
-
         const handleSkip = (event: KeyboardEvent) => {
-            if (event.key === 'Enter' || event.key === ' ') {
+            if (hasStarted && (event.key === 'Enter' || event.key === ' ')) {
                 event.preventDefault();
                 handleExit();
             }
@@ -63,20 +57,37 @@ export function IntroVideo() {
         window.addEventListener('keydown', handleSkip);
 
         return () => {
-            window.clearTimeout(skipHintTimer);
             window.removeEventListener('keydown', handleSkip);
             preloadLink?.remove();
         };
-    }, [preloadLink, router]);
+    }, [hasStarted, preloadLink, router]);
 
     const handleExit = () => {
         if (isLeaving) {
             return;
         }
 
+        stopIntroPlayback();
         sessionStorage.setItem(INTRO_KEY, 'true');
         setIsLeaving(true);
         window.setTimeout(() => router.replace('/lobby'), 500);
+    };
+
+    const handleStartGame = async () => {
+        const video = videoRef.current;
+
+        if (!video) {
+            return;
+        }
+
+        try {
+            video.muted = false;
+            await video.play();
+            setHasStarted(true);
+            window.setTimeout(() => setShowSkip(true), 2000);
+        } catch {
+            setHasStarted(false);
+        }
     };
 
     return (
@@ -93,6 +104,16 @@ export function IntroVideo() {
             </video>
 
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/10 to-black/40" />
+
+            {!hasStarted ? (
+                <button
+                    type="button"
+                    onClick={handleStartGame}
+                    className="metal-panel chrome-border absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full px-6 py-4 text-sm font-bold uppercase tracking-[0.26em] text-white"
+                >
+                    Start Game ▶
+                </button>
+            ) : null}
 
             <div className="absolute left-6 top-6 rounded-full border border-white/20 bg-black/35 px-4 py-2 text-[11px] uppercase tracking-[0.3em] text-zinc-300 backdrop-blur-md md:left-10 md:top-10">
                 Wrestle Rumble Intro
