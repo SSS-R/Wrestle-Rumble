@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 const INTRO_KEY = 'wr_intro_seen';
-const INTRO_VIDEO_PATH = '/videos/wrestle-rumble-intro.mp4';
+const basePath = process.env.NODE_ENV === 'production' ? '/Wrestle-Rumble' : '';
+const INTRO_VIDEO_PATH = `${basePath}/videos/wrestle-rumble-intro.mp4`;
 
 export function IntroVideo() {
     const router = useRouter();

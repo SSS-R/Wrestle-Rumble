@@ -10,26 +10,28 @@ type Track = {
 
 const MUSIC_STORAGE_KEY = 'wr_music_enabled';
 
+const basePath = process.env.NODE_ENV === 'production' ? '/Wrestle-Rumble' : '';
+
 const tracks: Track[] = [
     {
         title: 'Metalingus',
         artist: 'Edge',
-        src: '/music/edge-metalingus.mp3',
+        src: `${basePath}/music/edge-metalingus.mp3`,
     },
     {
         title: 'Voices',
         artist: 'Randy Orton',
-        src: '/music/randy-orton-voices.mp3',
+        src: `${basePath}/music/randy-orton-voices.mp3`,
     },
     {
         title: 'Are You Ready?',
         artist: 'D-Generation X',
-        src: '/music/dx-are-you-ready.mp3',
+        src: `${basePath}/music/dx-are-you-ready.mp3`,
     },
     {
         title: 'The Game',
         artist: 'Triple H',
-        src: '/music/triple-h-the-game.mp3',
+        src: `${basePath}/music/triple-h-the-game.mp3`,
     },
 ];
 
