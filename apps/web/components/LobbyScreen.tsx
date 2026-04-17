@@ -1,4 +1,4 @@
-const topNav = ['Lobby', 'Roster', 'Store', 'Social'];
+import { TopNavigation } from './TopNavigation';
 
 const actionCards = [
     {
@@ -38,46 +38,7 @@ export function LobbyScreen() {
     return (
         <main className="page-shell min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
             <div className="mx-auto flex min-h-screen max-w-[1600px] flex-col px-4 pb-6 pt-4 lg:px-6">
-                <header className="metal-panel chrome-border sticky top-4 z-20 mb-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl px-5 py-4">
-                    <div>
-                        <p className="font-[var(--font-display)] text-2xl uppercase tracking-[0.18em] text-[var(--accent-gold)] md:text-3xl">
-                            Wrestle Rumble
-                        </p>
-                        <p className="text-xs uppercase tracking-[0.28em] text-[var(--text-secondary)]">
-                            The Arena Lobby
-                        </p>
-                    </div>
-
-                    <nav className="flex flex-wrap items-center gap-5 text-xs font-semibold uppercase tracking-[0.28em] text-[var(--text-secondary)] md:text-sm">
-                        {topNav.map((item, index) => (
-                            <button
-                                key={item}
-                                type="button"
-                                className={`relative pb-2 transition hover:text-white ${index === 0 ? 'text-white' : ''}`}
-                            >
-                                {item}
-                                {index === 0 ? (
-                                    <span className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-[var(--accent-raw)]" />
-                                ) : null}
-                            </button>
-                        ))}
-                    </nav>
-
-                    <div className="flex items-center gap-3">
-                        <div className="chrome-border flex h-11 w-11 items-center justify-center rounded-full bg-white/5 text-lg">
-                            🔔
-                        </div>
-                        <div className="chrome-border flex items-center gap-3 rounded-full bg-white/5 px-3 py-2">
-                            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[var(--accent-gold)] to-[var(--accent-raw)]" />
-                            <div>
-                                <p className="text-sm font-semibold">RafiTheChampion</p>
-                                <p className="text-[11px] uppercase tracking-[0.24em] text-[var(--text-secondary)]">
-                                    Level 27
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </header>
+                <TopNavigation />
 
                 <section className="grid flex-1 gap-4 xl:grid-cols-[260px_minmax(0,1fr)_280px]">
                     <aside className="metal-panel chrome-border slide-in-panel relative overflow-hidden rounded-[28px] p-5">
