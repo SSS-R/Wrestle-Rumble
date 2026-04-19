@@ -19,17 +19,37 @@ A frontend showcase of the Wrestle Rumble card battle platform.
 ---
 
 
-## 🎯 Core Features (Backend & Logic)
+## 🎯 Project Features
 
-Wrestle Rumble is built with a focus on robust backend systems and relational data integrity:
+The initial phase of the project focuses on the following core features:
 
-- **🔐 Authentication & User Management**: Secure registration and login flows with persistent user profile and statistics storage.
-- **🎴 Relational Card Collection**: A comprehensive system for managing a WWE card catalog, including rarity tiers, attributes (Attack/Defense), and unique special abilities.
-- **📦 Automated Acquisition Logic**: Backend-enforced constraints for daily pack rewards and randomized loot generation algorithms.
-- **💰 Transaction-Safe Economy**: A coin-based ledger system for all buy/sell operations, ensuring ACID properties and data integrity.
-- **🤝 Atomic Trading Protocol**: A secure exchange system allowing friends to trade cards and coins through a centralized transaction handler.
-- **🏟️ Arena & Matchmaking**: A server-side engine for matchmaking, calculating PvP battle outcomes, and updating trophy/coin rewards.
-- **📈 Persistent Leaderboard**: Dynamic aggregation and ranking of users based on trophy counts stored in the database.
+### 1. User Authentication and Profiles
+- **User Registration**: Ability for a Person to sign up and create an account.
+- **Login/Logout**: Secure access to the platform.
+- **User Profile**: A dedicated page where users can view their statistics and card collection.
+
+### 2. Card Management
+This involves managing the collection of WWE cards.
+- **Card Catalog**: A public-facing page showcasing all available WWE cards, including their stats, rarity, and associated wrestler.
+- **User Collection View**: A private section allowing a logged-in user to view the specific cards they own.
+- **Card Data Model**: Each card will have attributes such as:
+  - Wrestler Name
+  - Attack/Defense Stats
+  - Rarity (e.g., Common, Rare, Legendary)
+  - Special Ability Text (signature + finisher)
+
+### 3. Basic Trading/Acquisition
+The MVP (Minimum Viable Product) will feature a straightforward method for users to acquire cards.
+- **Daily Pack Opening**: A feature allowing users to open one free pack per day to receive a random set of cards. This will be recorded in the database.
+- **Card Store (Buy/Sell)**: A feature where a user can sell and buy cards with coins.
+- **Friend-Only Trading/Exchange**: Users can only trade if they are friends, with the exchange functionality accessed from the friends chat and dashboard. The interface will be presented as a modal.
+
+### 4. Arena/Combat Feature
+This feature allows users to engage in player-vs-player combat.
+- **User Combat**: Users can fight with each other.
+- **Rewards**: After winning a fight, users will receive a trophy and some coins.
+- **Leaderboard**: A leaderboard will be maintained based on the number of trophies a user has acquired.
+- **Coin Utility**: Earned coins can be used to open card packs or buy cards from the card shop.
 
 ## 🗄️ Database Architecture
 

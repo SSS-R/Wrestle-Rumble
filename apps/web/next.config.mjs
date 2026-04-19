@@ -6,7 +6,7 @@ const nextConfig = {
     images: {
         unoptimized: true,
     },
-    basePath: '/Wrestle-Rumble',
+    basePath: process.env.NODE_ENV === 'production' ? '/Wrestle-Rumble' : '',
 };
 
 export default nextConfig;
