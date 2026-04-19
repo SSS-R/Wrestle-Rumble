@@ -19,19 +19,32 @@ A frontend showcase of the Wrestle Rumble card battle platform.
 ---
 
 
-## Planned stack
+## 🎯 Core Features (Backend & Logic)
 
-- Frontend: Next.js + React + Tailwind CSS
-- Backend: FastAPI
-- Database: PostgreSQL
+Wrestle Rumble is built with a focus on robust backend systems and relational data integrity:
 
-## MVP features
+- **🔐 Authentication & User Management**: Secure registration and login flows with persistent user profile and statistics storage.
+- **🎴 Relational Card Collection**: A comprehensive system for managing a WWE card catalog, including rarity tiers, attributes (Attack/Defense), and unique special abilities.
+- **📦 Automated Acquisition Logic**: Backend-enforced constraints for daily pack rewards and randomized loot generation algorithms.
+- **💰 Transaction-Safe Economy**: A coin-based ledger system for all buy/sell operations, ensuring ACID properties and data integrity.
+- **🤝 Atomic Trading Protocol**: A secure exchange system allowing friends to trade cards and coins through a centralized transaction handler.
+- **🏟️ Arena & Matchmaking**: A server-side engine for matchmaking, calculating PvP battle outcomes, and updating trophy/coin rewards.
+- **📈 Persistent Leaderboard**: Dynamic aggregation and ranking of users based on trophy counts stored in the database.
 
-- User authentication and profiles
-- Card catalog and player collections
-- Daily pack opening and coin economy
-- Friend-only trading flow
-- PvP arena battles and leaderboard
+## 🗄️ Database Architecture
+
+The project features a highly normalized relational schema designed for scalability and performance.
+
+- **[EER Diagram (Image)](file:///d:/Wrestle-Rumble/Database-architecture/EER%20Diagram.jpg)**
+- **[EER Diagram (PDF)](file:///d:/Wrestle-Rumble/Database-architecture/EER.pdf)**
+- **[Schema Map (Image)](file:///d:/Wrestle-Rumble/Database-architecture/schema%20map.png)**
+- **[Schema Map (PDF)](file:///d:/Wrestle-Rumble/Database-architecture/Schema%20map.pdf)**
+
+## 🛠️ Planned Tech Stack
+
+- **Frontend**: Next.js + React + Tailwind CSS
+- **Backend**: FastAPI (Python)
+- **Database**: PostgreSQL (Relational storage)
 
 ## Repository structure
 
