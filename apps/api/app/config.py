@@ -1,7 +1,12 @@
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "postgresql://wrestle_rumble:azYRIB4DFJD4sULk5juZ8g==@192.168.0.231:5433/wrestle_rumble"
+    APP_NAME: str = "Wrestle Rumble"
+    NEXT_PUBLIC_API_BASE_URL: str = "http://localhost:8000"
+    API_HOST: str = "0.0.0.0"
+    API_PORT: int = 8000
+    DATABASE_URL: str
+    SECRET_KEY: str = "change-me"
 
     class Config:
         env_file = ".env"
