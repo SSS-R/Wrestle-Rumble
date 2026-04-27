@@ -23,9 +23,7 @@ async def register(user_data: UserCreate, conn: asyncpg.Connection = Depends(get
         raise HTTPException(status_code=400, detail="Username or email already registered")
     
     hashed = hash_password(user_data.password)
-    role = user_data.role.lower()
-    if role not in ["player", "admin"]:
-        role = "player"
+    role = "player"
     
     async with conn.transaction():
         user = await conn.fetchrow(

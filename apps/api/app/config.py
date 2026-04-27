@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     API_PORT: int = 8000
     DATABASE_URL: str
     SECRET_KEY: str = "change-me"
+    ADMIN_USERNAME: str = "demo"
+    ADMIN_PASSWORD: str = "demo123"
 
     class Config:
         env_file = ".env"

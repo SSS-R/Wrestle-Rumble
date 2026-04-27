@@ -41,18 +41,27 @@ async def seed_db():
             )
         print("Seeded cards")
 
-        # 2. Seed Demo User
-        hashed_pw = hash_password("demo123")
+        # 2. Seed Admin User (Demo)
+        hashed_pw = hash_password(settings.ADMIN_PASSWORD)
         user_id = await conn.fetchval(
             """
             INSERT INTO users (name, email, password)
             VALUES ($1, $2, $3)
             RETURNING id
             """,
-            "demo", "demo@example.com", hashed_pw
+            settings.ADMIN_USERNAME, f"{settings.ADMIN_USERNAME}@wrestlerumble.com", hashed_pw
         )
         
-        # 3. Seed Player for Demo User
+        # 3. Seed Admin table entry
+        await conn.execute(
+            """
+            INSERT INTO admins (id)
+            VALUES ($1)
+            """,
+            user_id
+        )
+
+        # 4. Seed Player for Admin User (also giving them a player profile for testing)
         await conn.execute(
             """
             INSERT INTO players (id, age, trophy)
@@ -61,7 +70,7 @@ async def seed_db():
             user_id, 25, 100
         )
         
-        # 4. Seed Inventory for Demo Player
+        # 5. Seed Inventory for Admin Player
         inv_id = await conn.fetchval(
             """
             INSERT INTO inventories (player_id, coins)
@@ -71,18 +80,19 @@ async def seed_db():
             user_id, 1000
         )
         
-        # Give demo user a random card
+        # Give admin user a random card
         card_id = await conn.fetchval("SELECT id FROM cards LIMIT 1")
-        await conn.execute(
-            """
-            INSERT INTO inventory_cards (inventory_id, card_id, quantity, is_active)
-            VALUES ($1, $2, $3, $4)
-            """,
-            inv_id, card_id, 1, True
-        )
+        if card_id:
+            await conn.execute(
+                """
+                INSERT INTO inventory_cards (inventory_id, card_id, quantity, is_active)
+                VALUES ($1, $2, $3, $4)
+                """,
+                inv_id, card_id, 1, True
+            )
         
-        print("Database seeded successfully with new schema!")
-        print("Demo user: demo / demo123")
+        print(f"Database seeded successfully with new schema!")
+        print(f"Admin user: {settings.ADMIN_USERNAME} / {settings.ADMIN_PASSWORD}")
 
     except Exception as e:
         print(f"Error seeding database: {e}")

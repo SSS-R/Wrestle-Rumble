@@ -9,7 +9,6 @@ export default function AuthPage() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [role, setRole] = useState('player');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const router = useRouter();
@@ -30,7 +29,7 @@ export default function AuthPage() {
             } else {
                 const data = await fetchApi('/auth/register', {
                     method: 'POST',
-                    body: JSON.stringify({ name, email, password, role }),
+                    body: JSON.stringify({ name, email, password, role: 'player' }),
                 });
                 localStorage.setItem('wr_user', JSON.stringify(data));
                 router.push(data.role === 'admin' ? '/admin' : '/lobby');
@@ -109,21 +108,7 @@ export default function AuthPage() {
                         />
                     </div>
 
-                    {!isLogin && (
-                        <div>
-                            <label className="block text-xs font-bold uppercase text-[var(--text-secondary)] mb-1">Role</label>
-                            <div className="flex gap-4 mt-2">
-                                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                    <input type="radio" value="player" checked={role === 'player'} onChange={(e) => setRole(e.target.value)} className="accent-[var(--accent-raw)]" />
-                                    Player
-                                </label>
-                                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                    <input type="radio" value="admin" checked={role === 'admin'} onChange={(e) => setRole(e.target.value)} className="accent-[var(--accent-smackdown)]" />
-                                    Admin
-                                </label>
-                            </div>
-                        </div>
-                    )}
+
 
                     <button
                         type="submit"
