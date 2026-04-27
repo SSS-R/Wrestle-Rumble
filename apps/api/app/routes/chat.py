@@ -3,6 +3,7 @@ from typing import Dict, List
 from collections import deque
 import json
 from datetime import datetime
+from .. import crud
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -51,10 +52,7 @@ async def private_chat(websocket: WebSocket, player_id: int):
                 # Briefly acquire DB connection to save message without holding it forever
                 pool = websocket.app.state.db_pool
                 async with pool.acquire() as conn:
-                    await conn.execute(
-                        "INSERT INTO private_messages (sender_id, receiver_id, content) VALUES ($1, $2, $3)",
-                        player_id, receiver_id, content
-                    )
+                    await crud.create_private_message(conn, player_id, receiver_id, content)
                 
                 # Deliver real-time to online friend
                 if receiver_id in private_connections:

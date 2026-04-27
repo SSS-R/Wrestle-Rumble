@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 import asyncpg
 from ..database import get_db
+from .. import crud
 from ..schemas import UserCreate, UserResponse, UserLogin, AuthResponse, PlayerResponse
 import bcrypt
 
@@ -24,38 +25,12 @@ async def register(user_data: UserCreate, conn: asyncpg.Connection = Depends(get
     
     hashed = hash_password(user_data.password)
     
-    async with conn.transaction():
-        user = await conn.fetchrow(
-            """
-            INSERT INTO users (name, email, password)
-            VALUES ($1, $2, $3)
-            RETURNING id, name, email
-            """,
-            user_data.name, user_data.email, hashed
-        )
-        
-        player = await conn.fetchrow(
-            """
-            INSERT INTO players (id, age, trophy)
-            VALUES ($1, $2, $3)
-            RETURNING id, age, trophy
-            """,
-            user['id'], 18, 0
-        )
-        
-        inventory = await conn.fetchrow(
-            """
-            INSERT INTO inventories (player_id, coins)
-            VALUES ($1, $2)
-            RETURNING id, coins
-            """,
-            player['id'], 500
-        )
+        user_dict, player_dict, coins = await crud.create_user_with_player_inventory(conn, user_data, hashed)
         
     return AuthResponse(
-        user=UserResponse.model_validate(dict(user)),
-        player=PlayerResponse.model_validate(dict(player)),
-        coins=inventory['coins']
+        user=UserResponse.model_validate(user_dict),
+        player=PlayerResponse.model_validate(player_dict),
+        coins=coins
     )
 
 @router.post("/login", response_model=AuthResponse)

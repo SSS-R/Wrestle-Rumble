@@ -1,5 +1,6 @@
 import asyncpg
 import random
+from .. import crud
 
 def get_pack_contents(pack_type: str) -> tuple[int, dict, int]:
     packs = {
@@ -34,7 +35,7 @@ async def open_pack(conn: asyncpg.Connection, player_id: int, pack_type: str = '
     if inventory['coins'] < price:
         raise Exception(f"Not enough coins. Need {price}")
         
-    await conn.execute("UPDATE inventories SET coins = coins - $1 WHERE id = $2", price, inventory['id'])
+    await crud.deduct_inventory_coins(conn, inventory['id'], price)
     
     rarities = []
     for _ in range(count):
@@ -51,21 +52,7 @@ async def open_pack(conn: asyncpg.Connection, player_id: int, pack_type: str = '
             
         card = random.choice(cards)
         
-        existing = await conn.fetchrow(
-            "SELECT inventory_id, card_id, quantity FROM inventory_cards WHERE inventory_id = $1 AND card_id = $2",
-            inventory['id'], card['id']
-        )
-        
-        if existing:
-            await conn.execute(
-                "UPDATE inventory_cards SET quantity = quantity + 1 WHERE inventory_id = $1 AND card_id = $2",
-                inventory['id'], card['id']
-            )
-        else:
-            await conn.execute(
-                "INSERT INTO inventory_cards (inventory_id, card_id, quantity) VALUES ($1, $2, 1)",
-                inventory['id'], card['id']
-            )
+        await crud.add_or_update_inventory_card(conn, inventory['id'], card['id'])
             
         ic_full = await conn.fetchrow("""
             SELECT ic.*, 

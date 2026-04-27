@@ -4,6 +4,7 @@ from typing import List
 import random
 from datetime import datetime
 from ..database import get_db
+from .. import crud
 from ..schemas import BattleCreate, BattleResult, LeaderboardEntry
 from ..services.combat import calculate_battle_score, calculate_rewards
 
@@ -63,27 +64,10 @@ async def start_battle(battle_data: BattleCreate, conn: asyncpg.Connection = Dep
         opponent_player['trophy'] if opponent_player else None
     )
 
-    # 5. Apply Rewards
+    # 5. Apply Rewards & Record Match
     async with conn.transaction():
-        if user_won:
-            await conn.execute("UPDATE players SET trophy = trophy + $1 WHERE id = $2", trophies_gained, user_player['id'])
-            await conn.execute("UPDATE inventories SET coins = coins + $1 WHERE player_id = $2", coins_gained, user_player['id'])
-        else:
-            await conn.execute("UPDATE players SET trophy = GREATEST(0, trophy - $1) WHERE id = $2", trophies_gained, user_player['id'])
-
-        # 6. Record Match
-        match_id = await conn.fetchval(
-            """
-            INSERT INTO matches (type, start_time, duration, winner_id)
-            VALUES ($1, $2, $3, $4)
-            RETURNING id
-            """,
-            "1v1", datetime.now(), random.randint(60, 300), user_player['id'] if user_won else (opponent_player['id'] if opponent_player else None)
-        )
-        
-        await conn.execute("INSERT INTO player_matches (player_id, match_id) VALUES ($1, $2)", user_player['id'], match_id)
-        if opponent_player:
-            await conn.execute("INSERT INTO player_matches (player_id, match_id) VALUES ($1, $2)", opponent_player['id'], match_id)
+        await crud.apply_combat_rewards(conn, user_player['id'], trophies_gained, coins_gained, user_won)
+        match_id = await crud.record_match(conn, "1v1", random.randint(60, 300), user_player['id'] if user_won else (opponent_player['id'] if opponent_player else None), user_player['id'], opponent_player['id'] if opponent_player else None)
 
     return BattleResult(
         match_id=match_id,
