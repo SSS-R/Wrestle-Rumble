@@ -1,13 +1,23 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .db import engine, Base
+from contextlib import asynccontextmanager
+import asyncpg
+from .config import settings
 from .routes import auth, combat, packs
-from .models import Wrestler, Card
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: create connection pool
+    app.state.db_pool = await asyncpg.create_pool(settings.DATABASE_URL)
+    yield
+    # Shutdown: close connection pool
+    await app.state.db_pool.close()
 
 app = FastAPI(
     title="Wrestle Rumble API",
     version="0.1.0",
     description="Backend API for the Wrestle Rumble WWE-themed card game MVP.",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -21,11 +31,6 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(combat.router)
 app.include_router(packs.router)
-
-
-@app.on_event("startup")
-def create_tables():
-    Base.metadata.create_all(bind=engine)
 
 
 @app.get("/")

@@ -1,10 +1,7 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from ..models import User, Card, UserCard, DailyPack, Rarity
-from .combat import get_daily_pack_cards
+import asyncpg
 from datetime import datetime, timedelta
 import random
-
+import json
 
 def get_pack_contents(pack_type: str) -> tuple[int, dict]:
     packs = {
@@ -16,51 +13,103 @@ def get_pack_contents(pack_type: str) -> tuple[int, dict]:
     pack = packs.get(pack_type, packs['basic'])
     return pack['count'], pack['weights']
 
+def get_daily_pack_cards(weights: dict) -> list[str]:
+    rarities = []
+    roll = random.random()
+    if roll < weights.get('legendary', 0):
+        rarities.append('Legendary')
+    elif roll < weights.get('legendary', 0) + weights.get('epic', 0):
+        rarities.append('Epic')
+    elif roll < weights.get('legendary', 0) + weights.get('epic', 0) + weights.get('rare', 0):
+        rarities.append('Rare')
+    else:
+        rarities.append('Common')
+    return rarities
 
-def can_claim_daily(db: Session, user_id: int) -> tuple[bool, datetime | None]:
-    last_claim = db.query(DailyPack).filter(
-        DailyPack.user_id == user_id
-    ).order_by(DailyPack.created_at.desc()).first()
+async def can_claim_daily(conn: asyncpg.Connection, user_id: int) -> tuple[bool, datetime | None]:
+    last_claim = await conn.fetchrow(
+        "SELECT claimed_at FROM daily_packs WHERE user_id = $1 ORDER BY claimed_at DESC LIMIT 1",
+        user_id
+    )
     
     if not last_claim:
         return True, None
     
-    next_claim = last_claim.created_at + timedelta(hours=24)
-    if datetime.now() >= next_claim:
+    next_claim = last_claim['claimed_at'] + timedelta(hours=24)
+    if datetime.now().astimezone() >= next_claim:
         return True, None
     
     return False, next_claim
 
-
-def open_pack(db: Session, user_id: int, pack_type: str = 'basic') -> list[UserCard]:
+async def open_pack(conn: asyncpg.Connection, user_id: int, pack_type: str = 'basic') -> list[dict]:
     count, weights = get_pack_contents(pack_type)
-    rarities = get_daily_pack_cards(weights)
     
+    rarities = []
+    for _ in range(count):
+        rarities.extend(get_daily_pack_cards(weights))
+        
     new_cards = []
+    new_card_ids = []
     for rarity in rarities:
-        cards = db.query(Card).filter(Card.rarity == rarity).all()
+        cards = await conn.fetch("SELECT id FROM cards WHERE rarity = $1", rarity)
         if not cards:
-            cards = db.query(Card).filter(Card.rarity == Rarity.COMMON).all()
-        
-        card = random.choice(cards) if cards else None
-        if not card:
+            cards = await conn.fetch("SELECT id FROM cards WHERE rarity = 'Common'")
+            
+        if not cards:
             continue
+            
+        card = random.choice(cards)
         
-        existing = db.query(UserCard).filter(
-            UserCard.user_id == user_id,
-            UserCard.card_id == card.id
-        ).first()
+        existing = await conn.fetchrow(
+            "SELECT id, quantity FROM user_cards WHERE user_id = $1 AND card_id = $2",
+            user_id, card['id']
+        )
         
         if existing:
-            existing.quantity += 1
-            new_cards.append(existing)
+            await conn.execute(
+                "UPDATE user_cards SET quantity = quantity + 1 WHERE id = $1",
+                existing['id']
+            )
+            uc_id = existing['id']
         else:
-            user_card = UserCard(user_id=user_id, card_id=card.id, quantity=1)
-            db.add(user_card)
-            new_cards.append(user_card)
-    
-    daily_pack = DailyPack(user_id=user_id, pack_type=pack_type, cards_received=str([c.card_id for c in new_cards]))
-    db.add(daily_pack)
-    db.commit()
+            uc_id = await conn.fetchval(
+                "INSERT INTO user_cards (user_id, card_id, quantity) VALUES ($1, $2, 1) RETURNING id",
+                user_id, card['id']
+            )
+            
+        uc_full = await conn.fetchrow("""
+            SELECT uc.*, 
+                   c.id as c_id, c.wrestler_id, c.rarity, c.attack, c.defense, c.price,
+                   w.id as w_id, w.name, w.signature_move, w.finisher, w.image_url
+            FROM user_cards uc
+            JOIN cards c ON uc.card_id = c.id
+            JOIN wrestlers w ON c.wrestler_id = w.id
+            WHERE uc.id = $1
+        """, uc_id)
+        
+        d = dict(uc_full)
+        d['card'] = {
+            'id': d['c_id'],
+            'wrestler_id': d['wrestler_id'],
+            'rarity': d['rarity'],
+            'attack': d['attack'],
+            'defense': d['defense'],
+            'price': d['price'],
+            'wrestler': {
+                'id': d['w_id'],
+                'name': d['name'],
+                'signature_move': d['signature_move'],
+                'finisher': d['finisher'],
+                'image_url': d['image_url']
+            }
+        }
+        new_cards.append(d)
+            
+        new_card_ids.append(card['id'])
+        
+    await conn.execute(
+        "INSERT INTO daily_packs (user_id, pack_type, cards_received) VALUES ($1, $2, $3)",
+        user_id, pack_type, json.dumps(new_card_ids)
+    )
     
     return new_cards

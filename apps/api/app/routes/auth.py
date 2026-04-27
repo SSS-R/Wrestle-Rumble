@@ -1,60 +1,58 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from ..db import get_db
-from ..models import User
-from ..schemas import UserCreate, UserResponse, UserLogin
-from passlib.context import CryptContext
+import asyncpg
+from ..database import get_db
+import bcrypt
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
-
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 @router.post("/register", response_model=UserResponse)
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    existing = db.query(User).filter(
-        (User.username == user_data.username) | (User.email == user_data.email)
-    ).first()
+async def register(user_data: UserCreate, conn: asyncpg.Connection = Depends(get_db)):
+    existing = await conn.fetchrow(
+        "SELECT id FROM users WHERE username = $1 OR email = $2",
+        user_data.username, user_data.email
+    )
     
     if existing:
         raise HTTPException(status_code=400, detail="Username or email already registered")
     
-    user = User(
-        username=user_data.username,
-        email=user_data.email,
-        hashed_password=hash_password(user_data.password)
+    hashed = hash_password(user_data.password)
+    user = await conn.fetchrow(
+        """
+        INSERT INTO users (username, email, hashed_password)
+        VALUES ($1, $2, $3)
+        RETURNING id, username, email, level, coins, trophies, created_at
+        """,
+        user_data.username, user_data.email, hashed
     )
     
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    
-    return user
-
+    return dict(user)
 
 @router.post("/login", response_model=UserResponse)
-def login(login_data: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == login_data.username).first()
+async def login(login_data: UserLogin, conn: asyncpg.Connection = Depends(get_db)):
+    user = await conn.fetchrow(
+        "SELECT * FROM users WHERE username = $1",
+        login_data.username
+    )
     
-    if not user or not verify_password(login_data.password, user.hashed_password):
+    if not user or not verify_password(login_data.password, user['hashed_password']):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    return user
-
+    return dict(user)
 
 @router.get("/user/{user_id}", response_model=UserResponse)
-def get_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id).first()
+async def get_user(user_id: int, conn: asyncpg.Connection = Depends(get_db)):
+    user = await conn.fetchrow(
+        "SELECT id, username, email, level, coins, trophies, created_at FROM users WHERE id = $1",
+        user_id
+    )
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    return user
+    return dict(user)

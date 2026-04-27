@@ -1,82 +1,81 @@
-from sqlalchemy.orm import Session
-from app.db import SessionLocal, engine, Base
-from app.models import Wrestler, Card, Rarity, User
-from passlib.context import CryptContext
+import asyncio
+import asyncpg
+import sys
+import os
+import bcrypt
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from app.config import settings
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password[:72])
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
-Base.metadata.create_all(bind=engine)
+async def seed_db():
+    conn = await asyncpg.connect(settings.DATABASE_URL)
+    try:
+        wrestlers_data = [
+            ("Roman Reigns", "Superman Punch", "Spear", None),
+            ("John Cena", "Five Knuckle Shuffle", "Attitude Adjustment", None),
+            ("Rhea Ripley", "Prism Trap", "Riptide", None),
+            ("Seth Rollins", "Sling Blade", "Curb Stomp", None),
+            ("AJ Styles", "Pele Kick", "Styles Clash", None),
+            ("Rey Mysterio", "619", "Frog Splash", None),
+            ("The Miz", "It Kicks", "Skull Crushing Finale", None),
+            ("Gunther", "Powerbomb", "Symphony", None),
+            ("Cody Rhodes", "Disaster Kick", "Cross Rhodes", None),
+            ("Sami Zayn", "Blue Thunder Bomb", "Helluva Kick", None),
+        ]
+        
+        # Clear existing data first so seed can be run multiple times
+        await conn.execute("DELETE FROM cards;")
+        await conn.execute("DELETE FROM wrestlers;")
+        await conn.execute("DELETE FROM users;")
 
-db = SessionLocal()
+        await conn.executemany('''
+            INSERT INTO wrestlers (name, signature_move, finisher, image_url)
+            VALUES ($1, $2, $3, $4)
+        ''', wrestlers_data)
 
-try:
-    wrestlers_data = [
-        {"name": "Roman Reigns", "signature_move": "Superman Punch", "finisher": "Spear"},
-        {"name": "John Cena", "signature_move": "Five Knuckle Shuffle", "finisher": "Attitude Adjustment"},
-        {"name": "Rhea Ripley", "signature_move": "Prism Trap", "finisher": "Riptide"},
-        {"name": "Seth Rollins", "signature_move": "Sling Blade", "finisher": "Curb Stomp"},
-        {"name": "AJ Styles", "signature_move": "Pele Kick", "finisher": "Styles Clash"},
-        {"name": "Rey Mysterio", "signature_move": "619", "finisher": "Frog Splash"},
-        {"name": "The Miz", "signature_move": "It Kicks", "finisher": "Skull Crushing Finale"},
-        {"name": "Gunther", "signature_move": "Powerbomb", "finisher": "Symphony"},
-        {"name": "Cody Rhodes", "signature_move": "Disaster Kick", "finisher": "Cross Rhodes"},
-        {"name": "Sami Zayn", "signature_move": "Blue Thunder Bomb", "finisher": "Helluva Kick"},
-    ]
-    
-    for w_data in wrestlers_data:
-        wrestler = Wrestler(**w_data)
-        db.add(wrestler)
-    
-    db.commit()
-    
-    wrestlers = db.query(Wrestler).all()
-    
-    cards_data = [
-        {"wrestler_idx": 0, "rarity": Rarity.LEGENDARY, "attack": 95, "defense": 90, "price": 1500},
-        {"wrestler_idx": 1, "rarity": Rarity.EPIC, "attack": 88, "defense": 85, "price": 800},
-        {"wrestler_idx": 2, "rarity": Rarity.EPIC, "attack": 86, "defense": 89, "price": 750},
-        {"wrestler_idx": 3, "rarity": Rarity.LEGENDARY, "attack": 92, "defense": 88, "price": 1400},
-        {"wrestler_idx": 4, "rarity": Rarity.EPIC, "attack": 87, "defense": 82, "price": 650},
-        {"wrestler_idx": 5, "rarity": Rarity.RARE, "attack": 78, "defense": 70, "price": 300},
-        {"wrestler_idx": 6, "rarity": Rarity.COMMON, "attack": 70, "defense": 72, "price": 100},
-        {"wrestler_idx": 7, "rarity": Rarity.EPIC, "attack": 90, "defense": 92, "price": 900},
-        {"wrestler_idx": 8, "rarity": Rarity.LEGENDARY, "attack": 91, "defense": 87, "price": 1450},
-        {"wrestler_idx": 9, "rarity": Rarity.RARE, "attack": 80, "defense": 78, "price": 350},
-    ]
-    
-    for c_data in cards_data:
-        card = Card(
-            wrestler_id=wrestlers[c_data["wrestler_idx"]].id,
-            rarity=c_data["rarity"],
-            attack=c_data["attack"],
-            defense=c_data["defense"],
-            price=c_data["price"]
-        )
-        db.add(card)
-    
-    db.commit()
-    
-    demo_user = User(
-        username="demo",
-        email="demo@wrestlerumble.com",
-        hashed_password=hash_password("demo123"),
-        level=27,
-        coins=2450,
-        trophies=318
-    )
-    db.add(demo_user)
-    db.commit()
-    
-    print("Database seeded successfully!")
-    print(f"Created {len(wrestlers)} wrestlers")
-    print(f"Created {len(cards_data)} cards")
-    print("Demo user: demo / demo123")
-    
-except Exception as e:
-    db.rollback()
-    print(f"Error seeding database: {e}")
-finally:
-    db.close()
+        # Get inserted wrestlers to map IDs
+        wrestlers = await conn.fetch('SELECT id, name FROM wrestlers ORDER BY id ASC LIMIT 10')
+        wrestler_ids = [w['id'] for w in wrestlers]
+
+        if not wrestler_ids:
+            print("No wrestlers inserted.")
+            return
+
+        cards_data = [
+            (wrestler_ids[0], "Legendary", 95, 90, 1500),
+            (wrestler_ids[1], "Epic", 88, 85, 800),
+            (wrestler_ids[2], "Epic", 86, 89, 750),
+            (wrestler_ids[3], "Legendary", 92, 88, 1400),
+            (wrestler_ids[4], "Epic", 87, 82, 650),
+            (wrestler_ids[5], "Rare", 78, 70, 300),
+            (wrestler_ids[6], "Common", 70, 72, 100),
+            (wrestler_ids[7], "Epic", 90, 92, 900),
+            (wrestler_ids[8], "Legendary", 91, 87, 1450),
+            (wrestler_ids[9], "Rare", 80, 78, 350),
+        ]
+
+        await conn.executemany('''
+            INSERT INTO cards (wrestler_id, rarity, attack, defense, price)
+            VALUES ($1, $2, $3, $4, $5)
+        ''', cards_data)
+
+        await conn.execute('''
+            INSERT INTO users (username, email, hashed_password, level, coins, trophies)
+            VALUES ($1, $2, $3, $4, $5, $6)
+        ''', "demo", "demo@wrestlerumble.com", hash_password("demo123"), 27, 2450, 318)
+
+        print("Database seeded successfully!")
+        print(f"Created {len(wrestlers_data)} wrestlers")
+        print(f"Created {len(cards_data)} cards")
+        print("Demo user: demo / demo123")
+
+    except Exception as e:
+        print(f"Error seeding database: {e}")
+    finally:
+        await conn.close()
+
+if __name__ == "__main__":
+    asyncio.run(seed_db())
