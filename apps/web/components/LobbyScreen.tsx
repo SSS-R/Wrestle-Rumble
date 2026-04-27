@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { TopNavigation } from './TopNavigation';
 
 const actionCards = [
@@ -6,18 +7,21 @@ const actionCards = [
         text: 'Find an opponent and step into the ring.',
         accent: 'from-red-600/30 to-red-950/60',
         cta: 'Start Queue',
+        href: '/battle',
     },
     {
         title: 'Daily Pack',
-        text: 'Open your free pack and reveal tonight’s pulls.',
+        text: 'Open your free pack and reveal tonight's pulls.',
         accent: 'from-amber-400/25 to-zinc-900/80',
         cta: 'Claim Pack',
+        href: '/store',
     },
     {
         title: 'Leaderboard',
         text: 'Track the top champions and trophy counts.',
         accent: 'from-blue-500/25 to-zinc-950/80',
         cta: 'View Rankings',
+        href: '/leaderboard',
     },
 ];
 
@@ -87,12 +91,12 @@ export function LobbyScreen() {
                                         {card.title}
                                     </h2>
                                     <p className="mt-3 max-w-xs text-sm leading-7 text-zinc-300">{card.text}</p>
-                                    <button
-                                        type="button"
+                                    <Link
+                                        href={card.href}
                                         className="mt-8 rounded-full border border-white/15 bg-black/35 px-4 py-2 text-xs font-bold uppercase tracking-[0.24em] text-white"
                                     >
                                         {card.cta}
-                                    </button>
+                                    </Link>
                                 </article>
                             ))}
                         </div>
