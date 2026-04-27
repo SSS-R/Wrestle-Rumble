@@ -1,12 +1,12 @@
 from sqlalchemy.orm import Session
-from ..models import User, Card, UserCard, DailyPack
+from sqlalchemy import func
+from ..models import User, Card, UserCard, DailyPack, Rarity
 from .combat import get_daily_pack_cards
 from datetime import datetime, timedelta
 import random
 
 
 def get_pack_contents(pack_type: str) -> tuple[int, dict]:
-    """Get card count and rarity weights for pack type"""
     packs = {
         'basic': {'count': 3, 'weights': {'legendary': 0.01, 'epic': 0.05, 'rare': 0.2}},
         'silver': {'count': 5, 'weights': {'legendary': 0.02, 'epic': 0.1, 'rare': 0.4}},
@@ -18,7 +18,6 @@ def get_pack_contents(pack_type: str) -> tuple[int, dict]:
 
 
 def can_claim_daily(db: Session, user_id: int) -> tuple[bool, datetime | None]:
-    """Check if user can claim daily pack"""
     last_claim = db.query(DailyPack).filter(
         DailyPack.user_id == user_id
     ).order_by(DailyPack.created_at.desc()).first()
@@ -34,15 +33,18 @@ def can_claim_daily(db: Session, user_id: int) -> tuple[bool, datetime | None]:
 
 
 def open_pack(db: Session, user_id: int, pack_type: str = 'basic') -> list[UserCard]:
-    """Open a pack and add cards to user collection"""
     count, weights = get_pack_contents(pack_type)
     rarities = get_daily_pack_cards(weights)
     
     new_cards = []
     for rarity in rarities:
-        card = db.query(Card).filter(Card.rarity == rarity).order_by(random.func.random()).first()
+        cards = db.query(Card).filter(Card.rarity == rarity).all()
+        if not cards:
+            cards = db.query(Card).filter(Card.rarity == Rarity.COMMON).all()
+        
+        card = random.choice(cards) if cards else None
         if not card:
-            card = db.query(Card).filter(Card.rarity == 'Common').first()
+            continue
         
         existing = db.query(UserCard).filter(
             UserCard.user_id == user_id,

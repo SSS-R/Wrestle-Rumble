@@ -77,6 +77,7 @@ class UserCardResponse(BaseModel):
 
 class BattleCreate(BaseModel):
     opponent_id: Optional[int] = None
+    opponent_card_id: Optional[int] = None
     user_card_id: int
 
 
