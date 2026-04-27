@@ -2,80 +2,91 @@ from fastapi import APIRouter, Depends, HTTPException
 import asyncpg
 from typing import List
 import random
+from datetime import datetime
 from ..database import get_db
-from ..schemas import BattleCreate, BattleResponse, BattleResult, LeaderboardEntry
+from ..schemas import BattleCreate, BattleResult, LeaderboardEntry
 from ..services.combat import calculate_battle_score, calculate_rewards
 
 router = APIRouter(prefix="/api/combat", tags=["combat"])
 
 @router.post("/battle", response_model=BattleResult)
 async def start_battle(battle_data: BattleCreate, conn: asyncpg.Connection = Depends(get_db)):
+    # 1. Fetch User's active card from inventory
+    user_inventory = await conn.fetchrow("SELECT id FROM inventories WHERE player_id = $1", battle_data.player_id)
+    if not user_inventory:
+        raise HTTPException(status_code=404, detail="Player inventory not found")
+        
     user_card_entry = await conn.fetchrow(
-        "SELECT uc.*, c.attack, c.defense FROM user_cards uc JOIN cards c ON uc.card_id = c.id WHERE uc.id = $1",
-        battle_data.user_card_id
+        "SELECT ic.*, c.att, c.def as defense FROM inventory_cards ic JOIN cards c ON ic.card_id = c.id WHERE ic.inventory_id = $1 AND ic.card_id = $2",
+        user_inventory['id'], battle_data.user_card_id
     )
     if not user_card_entry:
-        raise HTTPException(status_code=404, detail="Card not found")
+        raise HTTPException(status_code=404, detail="Card not found in inventory")
         
+    # 2. Fetch Opponent Card
     opponent_card_entry = None
     if battle_data.opponent_id:
-        opponent_card_entry = await conn.fetchrow(
-            "SELECT uc.*, c.attack, c.defense FROM user_cards uc JOIN cards c ON uc.card_id = c.id WHERE uc.id = $1 AND uc.user_id = $2",
-            battle_data.opponent_card_id, battle_data.opponent_id
-        )
-        if not opponent_card_entry:
-            raise HTTPException(status_code=404, detail="Opponent card not found")
+        opp_inventory = await conn.fetchrow("SELECT id FROM inventories WHERE player_id = $1", battle_data.opponent_id)
+        if opp_inventory:
+            opponent_card_entry = await conn.fetchrow(
+                "SELECT ic.*, c.att, c.def as defense FROM inventory_cards ic JOIN cards c ON ic.card_id = c.id WHERE ic.inventory_id = $1 AND ic.card_id = $2",
+                opp_inventory['id'], battle_data.opponent_card_id
+            )
+            if not opponent_card_entry:
+                raise HTTPException(status_code=404, detail="Opponent card not found")
     else:
         opponent_cards = await conn.fetch(
-            "SELECT uc.*, c.attack, c.defense FROM user_cards uc JOIN cards c ON uc.card_id = c.id WHERE uc.user_id != $1 AND uc.is_active = TRUE",
-            user_card_entry['user_id']
+            "SELECT ic.*, c.att, c.def as defense, inv.player_id FROM inventory_cards ic JOIN cards c ON ic.card_id = c.id JOIN inventories inv ON ic.inventory_id = inv.id WHERE inv.player_id != $1 AND ic.is_active = TRUE",
+            battle_data.player_id
         )
         if not opponent_cards:
             opponent_cards = await conn.fetch(
-                "SELECT uc.*, c.attack, c.defense FROM user_cards uc JOIN cards c ON uc.card_id = c.id WHERE uc.user_id != $1",
-                user_card_entry['user_id']
+                "SELECT ic.*, c.att, c.def as defense, inv.player_id FROM inventory_cards ic JOIN cards c ON ic.card_id = c.id JOIN inventories inv ON ic.inventory_id = inv.id WHERE inv.player_id != $1",
+                battle_data.player_id
             )
         if not opponent_cards:
             raise HTTPException(status_code=404, detail="No opponents available")
         opponent_card_entry = random.choice(opponent_cards)
 
+    # 3. Calculate Score
     user_score, opponent_score = calculate_battle_score(dict(user_card_entry), dict(opponent_card_entry))
     user_won = user_score > opponent_score
 
-    user = await conn.fetchrow("SELECT * FROM users WHERE id = $1", user_card_entry['user_id'])
-    opponent = await conn.fetchrow("SELECT * FROM users WHERE id = $1", opponent_card_entry['user_id']) if opponent_card_entry else None
+    user_player = await conn.fetchrow("SELECT * FROM players WHERE id = $1", battle_data.player_id)
+    opp_player_id = opponent_card_entry.get('player_id') or battle_data.opponent_id
+    opponent_player = await conn.fetchrow("SELECT * FROM players WHERE id = $1", opp_player_id) if opp_player_id else None
 
+    # 4. Calculate Rewards
     trophies_gained, coins_gained = calculate_rewards(
         user_won,
-        user['level'],
-        opponent['trophies'] if opponent else None
+        user_player['age'], # using age as level roughly
+        opponent_player['trophy'] if opponent_player else None
     )
 
-    if user_won:
-        await conn.execute(
-            "UPDATE users SET trophies = trophies + $1, coins = coins + $2 WHERE id = $3",
-            trophies_gained, coins_gained, user['id']
-        )
-        result_status = "win"
-    else:
-        await conn.execute(
-            "UPDATE users SET trophies = GREATEST(0, trophies - $1) WHERE id = $2",
-            trophies_gained, user['id']
-        )
-        result_status = "loss"
+    # 5. Apply Rewards
+    async with conn.transaction():
+        if user_won:
+            await conn.execute("UPDATE players SET trophy = trophy + $1 WHERE id = $2", trophies_gained, user_player['id'])
+            await conn.execute("UPDATE inventories SET coins = coins + $1 WHERE player_id = $2", coins_gained, user_player['id'])
+        else:
+            await conn.execute("UPDATE players SET trophy = GREATEST(0, trophy - $1) WHERE id = $2", trophies_gained, user_player['id'])
 
-    battle_id = await conn.fetchval(
-        """
-        INSERT INTO battles (user_id, opponent_id, user_card_id, opponent_card_id, user_score, opponent_score, result, trophies_gained, coins_gained)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING id
-        """,
-        user['id'], opponent['id'] if opponent else None, user_card_entry['id'], opponent_card_entry['id'] if opponent_card_entry else None,
-        user_score, opponent_score, result_status, trophies_gained if user_won else -trophies_gained, coins_gained if user_won else 0
-    )
+        # 6. Record Match
+        match_id = await conn.fetchval(
+            """
+            INSERT INTO matches (type, start_time, duration, winner_id)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id
+            """,
+            "1v1", datetime.now(), random.randint(60, 300), user_player['id'] if user_won else (opponent_player['id'] if opponent_player else None)
+        )
+        
+        await conn.execute("INSERT INTO player_matches (player_id, match_id) VALUES ($1, $2)", user_player['id'], match_id)
+        if opponent_player:
+            await conn.execute("INSERT INTO player_matches (player_id, match_id) VALUES ($1, $2)", opponent_player['id'], match_id)
 
     return BattleResult(
-        battle_id=battle_id,
+        match_id=match_id,
         user_won=user_won,
         user_score=user_score,
         opponent_score=opponent_score,
@@ -85,13 +96,8 @@ async def start_battle(battle_data: BattleCreate, conn: asyncpg.Connection = Dep
 
 @router.get("/leaderboard", response_model=List[LeaderboardEntry])
 async def get_leaderboard(limit: int = 10, conn: asyncpg.Connection = Depends(get_db)):
-    users = await conn.fetch("SELECT id, username, trophies FROM users ORDER BY trophies DESC LIMIT $1", limit)
+    players = await conn.fetch("SELECT p.id, u.name, p.trophy FROM players p JOIN users u ON p.id = u.id ORDER BY p.trophy DESC LIMIT $1", limit)
     return [
-        LeaderboardEntry(rank=i + 1, user_id=u['id'], username=u['username'], trophies=u['trophies'])
-        for i, u in enumerate(users)
+        LeaderboardEntry(rank=i + 1, player_id=p['id'], name=p['name'], trophy=p['trophy'])
+        for i, p in enumerate(players)
     ]
-
-@router.get("/history", response_model=List[BattleResponse])
-async def get_battle_history(user_id: int, limit: int = 20, conn: asyncpg.Connection = Depends(get_db)):
-    battles = await conn.fetch("SELECT * FROM battles WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2", user_id, limit)
-    return [dict(b) for b in battles]

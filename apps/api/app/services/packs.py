@@ -1,55 +1,46 @@
 import asyncpg
-from datetime import datetime, timedelta
 import random
-import json
 
-def get_pack_contents(pack_type: str) -> tuple[int, dict]:
+def get_pack_contents(pack_type: str) -> tuple[int, dict, int]:
     packs = {
-        'basic': {'count': 3, 'weights': {'legendary': 0.01, 'epic': 0.05, 'rare': 0.2}},
-        'silver': {'count': 5, 'weights': {'legendary': 0.02, 'epic': 0.1, 'rare': 0.4}},
-        'gold': {'count': 5, 'weights': {'legendary': 0.05, 'epic': 0.3, 'rare': 0.5}},
-        'legends': {'count': 5, 'weights': {'legendary': 0.2, 'epic': 0.4, 'rare': 0.4}},
+        'basic': {'count': 3, 'weights': {'Legendary': 0.01, 'Epic': 0.05, 'Rare': 0.2}, 'price': 100},
+        'silver': {'count': 5, 'weights': {'Legendary': 0.02, 'Epic': 0.1, 'Rare': 0.4}, 'price': 250},
+        'gold': {'count': 5, 'weights': {'Legendary': 0.05, 'Epic': 0.3, 'Rare': 0.5}, 'price': 500},
+        'legends': {'count': 5, 'weights': {'Legendary': 0.2, 'Epic': 0.4, 'Rare': 0.4}, 'price': 1000},
     }
     pack = packs.get(pack_type, packs['basic'])
-    return pack['count'], pack['weights']
+    return pack['count'], pack['weights'], pack['price']
 
-def get_daily_pack_cards(weights: dict) -> list[str]:
+def get_pack_cards_rarity(weights: dict) -> list[str]:
     rarities = []
     roll = random.random()
-    if roll < weights.get('legendary', 0):
+    if roll < weights.get('Legendary', 0):
         rarities.append('Legendary')
-    elif roll < weights.get('legendary', 0) + weights.get('epic', 0):
+    elif roll < weights.get('Legendary', 0) + weights.get('Epic', 0):
         rarities.append('Epic')
-    elif roll < weights.get('legendary', 0) + weights.get('epic', 0) + weights.get('rare', 0):
+    elif roll < weights.get('Legendary', 0) + weights.get('Epic', 0) + weights.get('Rare', 0):
         rarities.append('Rare')
     else:
         rarities.append('Common')
     return rarities
 
-async def can_claim_daily(conn: asyncpg.Connection, user_id: int) -> tuple[bool, datetime | None]:
-    last_claim = await conn.fetchrow(
-        "SELECT claimed_at FROM daily_packs WHERE user_id = $1 ORDER BY claimed_at DESC LIMIT 1",
-        user_id
-    )
+async def open_pack(conn: asyncpg.Connection, player_id: int, pack_type: str = 'basic') -> list[dict]:
+    count, weights, price = get_pack_contents(pack_type)
     
-    if not last_claim:
-        return True, None
-    
-    next_claim = last_claim['claimed_at'] + timedelta(hours=24)
-    if datetime.now().astimezone() >= next_claim:
-        return True, None
-    
-    return False, next_claim
-
-async def open_pack(conn: asyncpg.Connection, user_id: int, pack_type: str = 'basic') -> list[dict]:
-    count, weights = get_pack_contents(pack_type)
+    inventory = await conn.fetchrow("SELECT id, coins FROM inventories WHERE player_id = $1", player_id)
+    if not inventory:
+        raise Exception("Inventory not found")
+        
+    if inventory['coins'] < price:
+        raise Exception(f"Not enough coins. Need {price}")
+        
+    await conn.execute("UPDATE inventories SET coins = coins - $1 WHERE id = $2", price, inventory['id'])
     
     rarities = []
     for _ in range(count):
-        rarities.extend(get_daily_pack_cards(weights))
+        rarities.extend(get_pack_cards_rarity(weights))
         
     new_cards = []
-    new_card_ids = []
     for rarity in rarities:
         cards = await conn.fetch("SELECT id FROM cards WHERE rarity = $1", rarity)
         if not cards:
@@ -61,55 +52,41 @@ async def open_pack(conn: asyncpg.Connection, user_id: int, pack_type: str = 'ba
         card = random.choice(cards)
         
         existing = await conn.fetchrow(
-            "SELECT id, quantity FROM user_cards WHERE user_id = $1 AND card_id = $2",
-            user_id, card['id']
+            "SELECT inventory_id, card_id, quantity FROM inventory_cards WHERE inventory_id = $1 AND card_id = $2",
+            inventory['id'], card['id']
         )
         
         if existing:
             await conn.execute(
-                "UPDATE user_cards SET quantity = quantity + 1 WHERE id = $1",
-                existing['id']
+                "UPDATE inventory_cards SET quantity = quantity + 1 WHERE inventory_id = $1 AND card_id = $2",
+                inventory['id'], card['id']
             )
-            uc_id = existing['id']
         else:
-            uc_id = await conn.fetchval(
-                "INSERT INTO user_cards (user_id, card_id, quantity) VALUES ($1, $2, 1) RETURNING id",
-                user_id, card['id']
+            await conn.execute(
+                "INSERT INTO inventory_cards (inventory_id, card_id, quantity) VALUES ($1, $2, 1)",
+                inventory['id'], card['id']
             )
             
-        uc_full = await conn.fetchrow("""
-            SELECT uc.*, 
-                   c.id as c_id, c.wrestler_id, c.rarity, c.attack, c.defense, c.price,
-                   w.id as w_id, w.name, w.signature_move, w.finisher, w.image_url
-            FROM user_cards uc
-            JOIN cards c ON uc.card_id = c.id
-            JOIN wrestlers w ON c.wrestler_id = w.id
-            WHERE uc.id = $1
-        """, uc_id)
+        ic_full = await conn.fetchrow("""
+            SELECT ic.*, 
+                   c.id as c_id, c.name, c.att, c.def as defense, c.finisher, c.signature, c.image, c.rarity, c.price
+            FROM inventory_cards ic
+            JOIN cards c ON ic.card_id = c.id
+            WHERE ic.inventory_id = $1 AND ic.card_id = $2
+        """, inventory['id'], card['id'])
         
-        d = dict(uc_full)
+        d = dict(ic_full)
         d['card'] = {
             'id': d['c_id'],
-            'wrestler_id': d['wrestler_id'],
+            'name': d['name'],
+            'att': d['att'],
+            'def': d['defense'],
+            'finisher': d['finisher'],
+            'signature': d['signature'],
+            'image': d['image'],
             'rarity': d['rarity'],
-            'attack': d['attack'],
-            'defense': d['defense'],
-            'price': d['price'],
-            'wrestler': {
-                'id': d['w_id'],
-                'name': d['name'],
-                'signature_move': d['signature_move'],
-                'finisher': d['finisher'],
-                'image_url': d['image_url']
-            }
+            'price': d['price']
         }
         new_cards.append(d)
-            
-        new_card_ids.append(card['id'])
         
-    await conn.execute(
-        "INSERT INTO daily_packs (user_id, pack_type, cards_received) VALUES ($1, $2, $3)",
-        user_id, pack_type, json.dumps(new_card_ids)
-    )
-    
     return new_cards

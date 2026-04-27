@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 import asyncpg
 from ..database import get_db
+from ..schemas import UserCreate, UserResponse, UserLogin, AuthResponse, PlayerResponse
 import bcrypt
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
@@ -11,48 +12,86 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
-@router.post("/register", response_model=UserResponse)
+@router.post("/register", response_model=AuthResponse)
 async def register(user_data: UserCreate, conn: asyncpg.Connection = Depends(get_db)):
     existing = await conn.fetchrow(
-        "SELECT id FROM users WHERE username = $1 OR email = $2",
-        user_data.username, user_data.email
+        "SELECT id FROM users WHERE name = $1 OR email = $2",
+        user_data.name, user_data.email
     )
     
     if existing:
         raise HTTPException(status_code=400, detail="Username or email already registered")
     
     hashed = hash_password(user_data.password)
-    user = await conn.fetchrow(
-        """
-        INSERT INTO users (username, email, hashed_password)
-        VALUES ($1, $2, $3)
-        RETURNING id, username, email, level, coins, trophies, created_at
-        """,
-        user_data.username, user_data.email, hashed
-    )
     
-    return dict(user)
+    async with conn.transaction():
+        user = await conn.fetchrow(
+            """
+            INSERT INTO users (name, email, password)
+            VALUES ($1, $2, $3)
+            RETURNING id, name, email
+            """,
+            user_data.name, user_data.email, hashed
+        )
+        
+        player = await conn.fetchrow(
+            """
+            INSERT INTO players (id, age, trophy)
+            VALUES ($1, $2, $3)
+            RETURNING id, age, trophy
+            """,
+            user['id'], 18, 0
+        )
+        
+        inventory = await conn.fetchrow(
+            """
+            INSERT INTO inventories (player_id, coins)
+            VALUES ($1, $2)
+            RETURNING id, coins
+            """,
+            player['id'], 500
+        )
+        
+    return AuthResponse(
+        user=UserResponse.model_validate(dict(user)),
+        player=PlayerResponse.model_validate(dict(player)),
+        coins=inventory['coins']
+    )
 
-@router.post("/login", response_model=UserResponse)
+@router.post("/login", response_model=AuthResponse)
 async def login(login_data: UserLogin, conn: asyncpg.Connection = Depends(get_db)):
     user = await conn.fetchrow(
-        "SELECT * FROM users WHERE username = $1",
-        login_data.username
+        "SELECT * FROM users WHERE name = $1",
+        login_data.name
     )
     
-    if not user or not verify_password(login_data.password, user['hashed_password']):
+    if not user or not verify_password(login_data.password, user['password']):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+    player = await conn.fetchrow("SELECT * FROM players WHERE id = $1", user['id'])
+    inventory = await conn.fetchrow("SELECT * FROM inventories WHERE player_id = $1", player['id'])
     
-    return dict(user)
+    return AuthResponse(
+        user=UserResponse.model_validate(dict(user)),
+        player=PlayerResponse.model_validate(dict(player)),
+        coins=inventory['coins'] if inventory else 0
+    )
 
-@router.get("/user/{user_id}", response_model=UserResponse)
+@router.get("/user/{user_id}", response_model=AuthResponse)
 async def get_user(user_id: int, conn: asyncpg.Connection = Depends(get_db)):
     user = await conn.fetchrow(
-        "SELECT id, username, email, level, coins, trophies, created_at FROM users WHERE id = $1",
+        "SELECT id, name, email FROM users WHERE id = $1",
         user_id
     )
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+        
+    player = await conn.fetchrow("SELECT * FROM players WHERE id = $1", user['id'])
+    inventory = await conn.fetchrow("SELECT * FROM inventories WHERE player_id = $1", player['id'])
     
-    return dict(user)
+    return AuthResponse(
+        user=UserResponse.model_validate(dict(user)),
+        player=PlayerResponse.model_validate(dict(player)),
+        coins=inventory['coins'] if inventory else 0
+    )

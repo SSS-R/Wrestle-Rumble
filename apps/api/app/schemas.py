@@ -1,71 +1,57 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime
-from enum import Enum
-
-
-class Rarity(str, Enum):
-    COMMON = "Common"
-    RARE = "Rare"
-    EPIC = "Epic"
-    LEGENDARY = "Legendary"
-
 
 class UserCreate(BaseModel):
-    username: str
+    name: str
     email: EmailStr
     password: str
 
-
 class UserLogin(BaseModel):
-    username: str
+    name: str
     password: str
-
 
 class UserResponse(BaseModel):
     id: int
-    username: str
+    name: str
     email: str
-    level: int
-    coins: int
-    trophies: int
 
     class Config:
         from_attributes = True
 
+class PlayerResponse(BaseModel):
+    id: int
+    age: int
+    trophy: int
+    user: Optional[UserResponse] = None
+
+    class Config:
+        from_attributes = True
+
+class AuthResponse(BaseModel):
+    user: UserResponse
+    player: PlayerResponse
+    coins: int
 
 class CardBase(BaseModel):
-    wrestler_id: int
-    rarity: Rarity
-    attack: int
-    defense: int
+    name: str
+    att: int
+    defense: int = Field(alias="def")
+    finisher: Optional[str] = None
+    signature: Optional[str] = None
+    image: Optional[str] = None
+    rarity: Optional[str] = 'Common'
     price: int = 100
-
 
 class CardResponse(CardBase):
     id: int
-    wrestler: "WrestlerResponse"
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
-
-class WrestlerBase(BaseModel):
-    name: str
-    signature_move: Optional[str] = None
-    finisher: Optional[str] = None
-    image_url: Optional[str] = None
-
-
-class WrestlerResponse(WrestlerBase):
-    id: int
-
-    class Config:
-        from_attributes = True
-
-
-class UserCardResponse(BaseModel):
-    id: int
+class InventoryCardResponse(BaseModel):
+    inventory_id: int
     card_id: int
     quantity: int
     is_active: bool
@@ -74,50 +60,26 @@ class UserCardResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
 class BattleCreate(BaseModel):
+    player_id: int
     opponent_id: Optional[int] = None
     opponent_card_id: Optional[int] = None
     user_card_id: int
 
-
-class BattleResponse(BaseModel):
-    id: int
-    user_id: int
-    opponent_id: Optional[int]
-    user_card_id: int
-    opponent_card_id: Optional[int]
-    user_score: Optional[int]
-    opponent_score: Optional[int]
-    result: Optional[str]
-    trophies_gained: int
-    coins_gained: int
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
 class BattleResult(BaseModel):
-    battle_id: int
+    match_id: int
     user_won: bool
     user_score: int
     opponent_score: int
     trophies_gained: int
     coins_gained: int
 
-
 class LeaderboardEntry(BaseModel):
     rank: int
-    user_id: int
-    username: str
-    trophies: int
-
+    player_id: int
+    name: str
+    trophy: int
 
 class PackOpenResponse(BaseModel):
-    cards: List[UserCardResponse]
+    cards: List[InventoryCardResponse]
     coins_gained: int = 0
-
-
-WrestlerResponse.model_rebuild()
-CardResponse.model_rebuild()

@@ -9,75 +9,149 @@ from app.config import settings
 async def create_tables():
     conn = await asyncpg.connect(settings.DATABASE_URL)
     try:
+        # Drop all tables cleanly if they exist to start fresh
         await conn.execute('''
-        CREATE TABLE IF NOT EXISTS users (
+            DROP TABLE IF EXISTS trade_cards CASCADE;
+            DROP TABLE IF EXISTS trades CASCADE;
+            DROP TABLE IF EXISTS event_cards CASCADE;
+            DROP TABLE IF EXISTS events CASCADE;
+            DROP TABLE IF EXISTS packs CASCADE;
+            DROP TABLE IF EXISTS stores CASCADE;
+            DROP TABLE IF EXISTS inventory_cards CASCADE;
+            DROP TABLE IF EXISTS inventories CASCADE;
+            DROP TABLE IF EXISTS player_matches CASCADE;
+            DROP TABLE IF EXISTS matches CASCADE;
+            DROP TABLE IF EXISTS leaderboards CASCADE;
+            DROP TABLE IF EXISTS private_messages CASCADE;
+            DROP TABLE IF EXISTS socials CASCADE;
+            DROP TABLE IF EXISTS admins CASCADE;
+            DROP TABLE IF EXISTS players CASCADE;
+            DROP TABLE IF EXISTS cards CASCADE;
+            DROP TABLE IF EXISTS users CASCADE;
+            
+            -- Old tables from previous iteration
+            DROP TABLE IF EXISTS daily_packs CASCADE;
+            DROP TABLE IF EXISTS battles CASCADE;
+            DROP TABLE IF EXISTS friendships CASCADE;
+            DROP TABLE IF EXISTS user_cards CASCADE;
+            DROP TABLE IF EXISTS wrestlers CASCADE;
+        ''')
+
+        await conn.execute('''
+        CREATE TABLE users (
             id SERIAL PRIMARY KEY,
-            username VARCHAR(255) UNIQUE NOT NULL,
+            name VARCHAR(255) UNIQUE NOT NULL,
             email VARCHAR(255) UNIQUE NOT NULL,
-            hashed_password VARCHAR(255) NOT NULL,
-            level INTEGER DEFAULT 1,
-            coins INTEGER DEFAULT 500,
-            trophies INTEGER DEFAULT 0,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            password VARCHAR(255) NOT NULL
         );
 
-        CREATE TABLE IF NOT EXISTS wrestlers (
+        CREATE TABLE players (
+            id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            age INTEGER DEFAULT 18,
+            trophy INTEGER DEFAULT 0
+        );
+
+        CREATE TABLE admins (
+            id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE socials (
+            id SERIAL PRIMARY KEY,
+            player_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+            friends INTEGER DEFAULT 0
+        );
+
+        CREATE TABLE private_messages (
+            id SERIAL PRIMARY KEY,
+            sender_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+            receiver_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+            content TEXT NOT NULL,
+            timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE leaderboards (
+            id SERIAL PRIMARY KEY,
+            type VARCHAR(50) NOT NULL
+        );
+
+        CREATE TABLE matches (
+            id SERIAL PRIMARY KEY,
+            type VARCHAR(50) NOT NULL,
+            start_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            end_time TIMESTAMP WITH TIME ZONE,
+            duration INTEGER,
+            winner_id INTEGER REFERENCES players(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE player_matches (
+            player_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+            match_id INTEGER REFERENCES matches(id) ON DELETE CASCADE,
+            PRIMARY KEY (player_id, match_id)
+        );
+
+        CREATE TABLE cards (
             id SERIAL PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
-            signature_move VARCHAR(255),
+            att INTEGER NOT NULL,
+            def INTEGER NOT NULL,
             finisher VARCHAR(255),
-            image_url TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS cards (
-            id SERIAL PRIMARY KEY,
-            wrestler_id INTEGER REFERENCES wrestlers(id) NOT NULL,
-            rarity VARCHAR(50) NOT NULL,
-            attack INTEGER NOT NULL,
-            defense INTEGER NOT NULL,
+            signature VARCHAR(255),
+            image VARCHAR(255),
+            rarity VARCHAR(50) DEFAULT 'Common',
             price INTEGER DEFAULT 100
         );
 
-        CREATE TABLE IF NOT EXISTS user_cards (
+        CREATE TABLE inventories (
             id SERIAL PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id) NOT NULL,
-            card_id INTEGER REFERENCES cards(id) NOT NULL,
+            player_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+            coins INTEGER DEFAULT 500
+        );
+
+        CREATE TABLE inventory_cards (
+            inventory_id INTEGER REFERENCES inventories(id) ON DELETE CASCADE,
+            card_id INTEGER REFERENCES cards(id) ON DELETE CASCADE,
             quantity INTEGER DEFAULT 1,
             is_active BOOLEAN DEFAULT FALSE,
-            acquired_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            PRIMARY KEY (inventory_id, card_id)
         );
 
-        CREATE TABLE IF NOT EXISTS battles (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id) NOT NULL,
-            opponent_id INTEGER REFERENCES users(id),
-            user_card_id INTEGER REFERENCES user_cards(id) NOT NULL,
-            opponent_card_id INTEGER REFERENCES user_cards(id),
-            user_score INTEGER,
-            opponent_score INTEGER,
-            result VARCHAR(50),
-            trophies_gained INTEGER DEFAULT 0,
-            coins_gained INTEGER DEFAULT 0,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        CREATE TABLE stores (
+            id SERIAL PRIMARY KEY
         );
 
-        CREATE TABLE IF NOT EXISTS daily_packs (
+        CREATE TABLE packs (
             id SERIAL PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id) NOT NULL,
-            pack_type VARCHAR(50) NOT NULL,
-            cards_received TEXT,
-            claimed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            type VARCHAR(50) NOT NULL,
+            price INTEGER NOT NULL,
+            store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE
         );
 
-        CREATE TABLE IF NOT EXISTS friendships (
+        CREATE TABLE events (
             id SERIAL PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id) NOT NULL,
-            friend_id INTEGER REFERENCES users(id) NOT NULL,
-            status VARCHAR(50) DEFAULT 'pending',
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+            end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+            entry_trophy INTEGER DEFAULT 0
+        );
+
+        CREATE TABLE event_cards (
+            event_id INTEGER REFERENCES events(id) ON DELETE CASCADE,
+            card_id INTEGER REFERENCES cards(id) ON DELETE CASCADE,
+            PRIMARY KEY (event_id, card_id)
+        );
+
+        CREATE TABLE trades (
+            id SERIAL PRIMARY KEY,
+            sender_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+            receiver_id INTEGER REFERENCES players(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE trade_cards (
+            trade_id INTEGER REFERENCES trades(id) ON DELETE CASCADE,
+            card_id INTEGER REFERENCES cards(id) ON DELETE CASCADE,
+            PRIMARY KEY (trade_id, card_id)
         );
         ''')
-        print("Tables created successfully.")
+        print("New DBML tables created successfully.")
     except Exception as e:
         print(f"Error creating tables: {e}")
     finally:
