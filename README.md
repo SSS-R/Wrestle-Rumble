@@ -44,12 +44,17 @@ The MVP (Minimum Viable Product) will feature a straightforward method for users
 - **Card Store (Buy/Sell)**: A feature where a user can sell and buy cards with coins.
 - **Friend-Only Trading/Exchange**: Users can only trade if they are friends, with the exchange functionality accessed from the friends chat and dashboard. The interface will be presented as a modal.
 
-### 4. Arena/Combat Feature
+### 4. Arena/Combat Feature ✅
 This feature allows users to engage in player-vs-player combat.
-- **User Combat**: Users can fight with each other.
-- **Rewards**: After winning a fight, users will receive a trophy and some coins.
-- **Leaderboard**: A leaderboard will be maintained based on the number of trophies a user has acquired.
+- **User Combat**: Users can fight with each other using their cards.
+- **Battle Arena**: Interactive UI with attack animations and real-time score calculation.
+- **Rewards**: After winning a fight, users will receive trophies and coins.
+- **Leaderboard**: A leaderboard is maintained based on the number of trophies acquired.
 - **Coin Utility**: Earned coins can be used to open card packs or buy cards from the card shop.
+- **Battle Mechanics**: 
+  - Score = (ATK × 0.7 + DEF × 0.3) × random(0.85-1.15)
+  - Win rewards: +15 trophies, +100 coins (base)
+  - Loss rewards: +25 coins (consolation)
 
 ## 🗄️ Database Architecture
 
@@ -95,8 +100,20 @@ npm run dev:web
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r apps/api/requirements.txt
+
+# Seed database with initial data
+python -m apps.api.seed
+
+# Run API server
 uvicorn app.main:app --reload --app-dir apps/api
 ```
+
+### Database Setup
+
+1. Install PostgreSQL
+2. Create database: `CREATE DATABASE wrestle_rumble;`
+3. Copy `.env.example` to `.env` and update `DATABASE_URL`
+4. Run seed script to populate wrestlers and cards
 
 ## Current status
 

@@ -8,7 +8,7 @@ const topNav = [
     { label: 'Lobby', href: '/lobby' },
     { label: 'Roster', href: '/roster' },
     { label: 'Store', href: '/store' },
-    { label: 'Social', href: '/social' },
+    { label: 'Leaderboard', href: '/leaderboard' },
 ];
 
 export function TopNavigation() {
