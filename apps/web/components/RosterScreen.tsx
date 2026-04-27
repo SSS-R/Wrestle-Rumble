@@ -23,7 +23,7 @@ export function RosterScreen() {
                         <select className="chrome-border rounded-xl bg-black/40 px-4 py-2 text-sm text-[var(--text-primary)] focus:outline-none">
                             <option>All Rarities</option>
                             <option>Legendary</option>
-                            <option>Epic</option>
+                            <option>Gold</option>
                             <option>Rare</option>
                             <option>Common</option>
                         </select>
@@ -39,12 +39,21 @@ export function RosterScreen() {
                         >
                             <div className={`relative aspect-[2/3] w-full overflow-hidden rounded-xl border-2 bg-gradient-to-br from-zinc-800 to-black ${
                                 card.rarity === 'Legendary' ? 'border-[var(--accent-gold)] shadow-[0_0_15px_rgba(212,175,55,0.3)] group-hover:shadow-[0_0_25px_rgba(212,175,55,0.6)]' :
-                                card.rarity === 'Epic' ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.3)] group-hover:shadow-[0_0_25px_rgba(168,85,247,0.6)]' :
+                                card.rarity === 'Gold' ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.3)] group-hover:shadow-[0_0_25px_rgba(168,85,247,0.6)]' :
                                 card.rarity === 'Rare' ? 'border-[var(--accent-smackdown)] group-hover:shadow-[0_0_20px_rgba(0,91,187,0.5)]' :
                                 'border-zinc-600 group-hover:border-zinc-400'
                             }`}>
                                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/brushed-alum.png')] opacity-10" />
-                                <div className="absolute bottom-4 left-0 right-0 text-center">
+                                {/* Placeholder logic: if image is present we'd render <img />, otherwise use this gradient placeholder */}
+                                <div className="absolute inset-0 flex items-center justify-center opacity-20">
+                                    <svg className="w-24 h-24 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                </div>
+                                <div className="absolute bottom-4 left-0 right-0 text-center flex flex-col items-center">
+                                    <span className="mb-1 rounded bg-black/60 px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest text-[var(--accent-gold)]">
+                                        {card.type}
+                                    </span>
                                     <p className="font-[var(--font-display)] text-xl uppercase tracking-wider drop-shadow-lg text-white">{card.name}</p>
                                 </div>
                                 {card.owned! > 1 && (
@@ -59,7 +68,7 @@ export function RosterScreen() {
                                     <span className="font-bold text-blue-500">DEF {card.def}</span>
                                 </div>
                                 <span className="text-[10px] font-bold uppercase text-zinc-500 tracking-wider flex items-center">
-                                    {card.rarity === 'Legendary' ? '★★★★★' : card.rarity === 'Epic' ? '★★★★' : card.rarity === 'Rare' ? '★★★' : '★'}
+                                    {card.rarity === 'Legendary' ? '★★★★★' : card.rarity === 'Gold' ? '★★★★' : card.rarity === 'Rare' ? '★★★' : '★'}
                                 </span>
                             </div>
                         </button>
@@ -77,7 +86,7 @@ export function RosterScreen() {
                         <div className="flex flex-col gap-8 md:flex-row">
                             <div className={`relative aspect-[2/3] w-full md:w-1/2 flex-shrink-0 rounded-2xl border-4 ${
                                 selectedCard.rarity === 'Legendary' ? 'border-[var(--accent-gold)]' :
-                                selectedCard.rarity === 'Epic' ? 'border-purple-500' :
+                                selectedCard.rarity === 'Gold' ? 'border-purple-500' :
                                 selectedCard.rarity === 'Rare' ? 'border-[var(--accent-smackdown)]' :
                                 'border-zinc-500'
                             } bg-zinc-900`}>
@@ -88,7 +97,7 @@ export function RosterScreen() {
                             <div className="flex flex-col justify-center">
                                 <span className={`w-max rounded px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] ${
                                     selectedCard.rarity === 'Legendary' ? 'bg-[var(--accent-gold)]/20 text-[var(--accent-gold)]' :
-                                    selectedCard.rarity === 'Epic' ? 'bg-purple-500/20 text-purple-400' :
+                                    selectedCard.rarity === 'Gold' ? 'bg-purple-500/20 text-purple-400' :
                                     selectedCard.rarity === 'Rare' ? 'bg-[var(--accent-smackdown)]/20 text-[var(--accent-smackdown)]' :
                                     'bg-zinc-500/20 text-zinc-300'
                                 }`}>{selectedCard.rarity} Rarity</span>

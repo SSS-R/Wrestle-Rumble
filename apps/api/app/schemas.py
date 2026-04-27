@@ -43,7 +43,24 @@ class CardBase(BaseModel):
     signature: Optional[str] = None
     image: Optional[str] = None
     rarity: Optional[str] = 'Common'
+    type: Optional[str] = 'Base'
     price: int = 100
+
+class VariantCreate(BaseModel):
+    name: str
+    att: int
+    defense: int = Field(alias="def")
+    finisher: Optional[str] = None
+    signature: Optional[str] = None
+    image: Optional[str] = None
+    rarity: str
+    price: int
+
+class BaseCardCreate(BaseModel):
+    variants: List[VariantCreate]
+
+class CardCreate(CardBase):
+    pass
 
 class CardResponse(CardBase):
     id: int

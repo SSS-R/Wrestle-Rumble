@@ -98,6 +98,7 @@ async def create_tables():
             signature VARCHAR(255),
             image VARCHAR(255),
             rarity VARCHAR(50) DEFAULT 'Common',
+            type VARCHAR(255) DEFAULT 'Base',
             price INTEGER DEFAULT 100
         );
 
