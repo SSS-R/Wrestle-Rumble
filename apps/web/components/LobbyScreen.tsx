@@ -11,7 +11,7 @@ const actionCards = [
     },
     {
         title: 'Daily Pack',
-        text: 'Open your free pack and reveal tonight's pulls.',
+        text: "Open your free pack and reveal tonight's pulls.",
         accent: 'from-amber-400/25 to-zinc-900/80',
         cta: 'Claim Pack',
         href: '/store',

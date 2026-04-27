@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { TopNavigation } from '../components/TopNavigation';
-import { BattleArena } from '../components/BattleArena';
-import { MOCK_CARDS, MOCK_USER } from '../lib/mockData';
+import { TopNavigation } from '../../components/TopNavigation';
+import { BattleArena } from '../../components/BattleArena';
+import { MOCK_CARDS, MOCK_USER } from '../../lib/mockData';
 
 export default function BattlePage() {
     const router = useRouter();
