@@ -128,3 +128,24 @@ input {
 .slide-in-panel {
     animation: slideInPanel 300ms ease-out both;
 }
+
+@keyframes pyro {
+    0% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-100px) scale(0);
+        opacity: 0;
+    }
+}
+
+@keyframes screenShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+}
+
+.animate-shake {
+    animation: screenShake 0.3s ease-in-out 3;
+}

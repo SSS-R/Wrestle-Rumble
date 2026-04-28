@@ -63,3 +63,39 @@ async def delete_wrestler_cards(conn: asyncpg.Connection, wrestler_name: str):
 
 async def delete_all_cards(conn: asyncpg.Connection):
     await conn.execute("DELETE FROM cards")
+
+async def apply_combat_rewards(conn: asyncpg.Connection, player_id: int, trophies: int, coins: int, won: bool):
+    async with conn.transaction():
+        await conn.execute(
+            "UPDATE players SET trophy = trophy + $1, highest_trophy = GREATEST(highest_trophy, trophy + $1) WHERE id = $2",
+            trophies, player_id
+        )
+        await conn.execute(
+            "UPDATE inventories SET coins = coins + $1 WHERE player_id = $2",
+            coins, player_id
+        )
+
+async def record_match(conn: asyncpg.Connection, match_type: str, duration: int, winner_id: int | None, player1_id: int, player2_id: int | None):
+    async with conn.transaction():
+        result = await conn.fetchrow(
+            """
+            INSERT INTO matches (type, duration, winner_id)
+            VALUES ($1, $2, $3)
+            RETURNING id
+            """,
+            match_type, duration, winner_id
+        )
+        match_id = result['id']
+        
+        await conn.execute(
+            "INSERT INTO player_matches (player_id, match_id) VALUES ($1, $2)",
+            player1_id, match_id
+        )
+        
+        if player2_id:
+            await conn.execute(
+                "INSERT INTO player_matches (player_id, match_id) VALUES ($1, $2)",
+                player2_id, match_id
+            )
+        
+        return match_id

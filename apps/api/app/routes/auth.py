@@ -53,6 +53,28 @@ async def register(user_data: UserCreate, conn: asyncpg.Connection = Depends(get
             player['id'], 500
         )
 
+        # Give 2 random starter cards
+        starter_cards = await conn.fetch(
+            "SELECT id, name, att, def as def_, rarity, type, image FROM cards ORDER BY RANDOM() LIMIT 2"
+        )
+        if starter_cards:
+            for card in starter_cards:
+                await conn.execute(
+                    """
+                    INSERT INTO inventory_cards (inventory_id, card_id, quantity, is_active)
+                    VALUES ($1, $2, 1, FALSE)
+                    ON CONFLICT (inventory_id, card_id)
+                    DO UPDATE SET quantity = inventory_cards.quantity + 1
+                    """,
+                    inventory['id'], card['id']
+                )
+        
+        # Mark gift as claimed so they can't claim again
+        await conn.execute(
+            "UPDATE players SET gift_claimed = TRUE WHERE id = $1",
+            player['id']
+        )
+
     return AuthResponse(
         user=UserResponse.model_validate(dict(user)),
         player=PlayerResponse.model_validate(dict(player)),

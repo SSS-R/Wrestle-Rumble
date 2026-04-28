@@ -6,7 +6,7 @@ from datetime import datetime
 from ..database import get_db
 from .. import crud
 from ..schemas import BattleCreate, BattleResult, LeaderboardEntry
-from ..services.combat import calculate_battle_score, calculate_rewards
+from ..services.combat import calculate_battle_score, calculate_rewards, generate_battle_events
 
 router = APIRouter(prefix="/api/combat", tags=["combat"])
 
@@ -49,25 +49,28 @@ async def start_battle(battle_data: BattleCreate, conn: asyncpg.Connection = Dep
             raise HTTPException(status_code=404, detail="No opponents available")
         opponent_card_entry = random.choice(opponent_cards)
 
-    # 3. Calculate Score
-    user_score, opponent_score = calculate_battle_score(dict(user_card_entry), dict(opponent_card_entry))
+    # 3. Generate battle events (15 second duration)
+    battle_events = generate_battle_events(dict(user_card_entry), dict(opponent_card_entry), duration=15)
+
+    # 4. Calculate Score
+    user_score, opponent_score = calculate_battle_score(dict(user_card_entry), dict(opponent_card_entry), battle_events)
     user_won = user_score > opponent_score
 
     user_player = await conn.fetchrow("SELECT * FROM players WHERE id = $1", battle_data.player_id)
     opp_player_id = opponent_card_entry.get('player_id') or battle_data.opponent_id
     opponent_player = await conn.fetchrow("SELECT * FROM players WHERE id = $1", opp_player_id) if opp_player_id else None
 
-    # 4. Calculate Rewards
+    # 5. Calculate Rewards
     trophies_gained, coins_gained = calculate_rewards(
         user_won,
-        user_player['age'], # using age as level roughly
+        user_player['age'],
         opponent_player['trophy'] if opponent_player else None
     )
 
-    # 5. Apply Rewards & Record Match
+    # 6. Apply Rewards & Record Match
     async with conn.transaction():
         await crud.apply_combat_rewards(conn, user_player['id'], trophies_gained, coins_gained, user_won)
-        match_id = await crud.record_match(conn, "1v1", random.randint(60, 300), user_player['id'] if user_won else (opponent_player['id'] if opponent_player else None), user_player['id'], opponent_player['id'] if opponent_player else None)
+        match_id = await crud.record_match(conn, "1v1", 15, user_player['id'] if user_won else (opponent_player['id'] if opponent_player else None), user_player['id'], opponent_player['id'] if opponent_player else None)
 
     return BattleResult(
         match_id=match_id,
@@ -75,7 +78,9 @@ async def start_battle(battle_data: BattleCreate, conn: asyncpg.Connection = Dep
         user_score=user_score,
         opponent_score=opponent_score,
         trophies_gained=trophies_gained if user_won else 0,
-        coins_gained=coins_gained if user_won else 0
+        coins_gained=coins_gained if user_won else 0,
+        duration=15,
+        events=battle_events
     )
 
 @router.get("/leaderboard", response_model=List[LeaderboardEntry])
