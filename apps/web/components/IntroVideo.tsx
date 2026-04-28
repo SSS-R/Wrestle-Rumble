@@ -38,9 +38,23 @@ export function IntroVideo() {
         return link;
     }, []);
 
+    const routeNext = () => {
+        const stored = localStorage.getItem('wr_user');
+        if (stored) {
+            try {
+                const data = JSON.parse(stored);
+                router.replace(data.role === 'admin' ? '/admin' : '/lobby');
+            } catch (e) {
+                router.replace('/login');
+            }
+        } else {
+            router.replace('/login');
+        }
+    };
+
     useEffect(() => {
         if (sessionStorage.getItem(INTRO_KEY) === 'true') {
-            router.replace('/lobby');
+            routeNext();
             return;
         }
 
@@ -71,7 +85,7 @@ export function IntroVideo() {
         stopIntroPlayback();
         sessionStorage.setItem(INTRO_KEY, 'true');
         setIsLeaving(true);
-        window.setTimeout(() => router.replace('/lobby'), 500);
+        window.setTimeout(routeNext, 500);
     };
 
     const handleStartGame = async () => {

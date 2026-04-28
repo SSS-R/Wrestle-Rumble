@@ -6,6 +6,7 @@ class UserCreate(BaseModel):
     name: str
     email: EmailStr
     password: str
+    role: str = "player"
 
 class UserLogin(BaseModel):
     name: str
@@ -30,8 +31,9 @@ class PlayerResponse(BaseModel):
 
 class AuthResponse(BaseModel):
     user: UserResponse
-    player: PlayerResponse
-    coins: int
+    player: Optional[PlayerResponse] = None
+    role: str
+    coins: int = 0
 
 class CardBase(BaseModel):
     name: str
@@ -41,7 +43,24 @@ class CardBase(BaseModel):
     signature: Optional[str] = None
     image: Optional[str] = None
     rarity: Optional[str] = 'Common'
+    type: Optional[str] = 'Base'
     price: int = 100
+
+class VariantCreate(BaseModel):
+    name: str
+    att: int
+    defense: int = Field(alias="def")
+    finisher: Optional[str] = None
+    signature: Optional[str] = None
+    image: Optional[str] = None
+    rarity: str
+    price: int
+
+class BaseCardCreate(BaseModel):
+    variants: List[VariantCreate]
+
+class CardCreate(CardBase):
+    pass
 
 class CardResponse(CardBase):
     id: int

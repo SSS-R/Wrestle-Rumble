@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { MOCK_USER } from '../lib/mockData';
@@ -13,6 +14,21 @@ const topNav = [
 
 export function TopNavigation() {
     const pathname = usePathname();
+    const [user, setUser] = useState<{username: string, level: number} | null>(null);
+
+    useEffect(() => {
+        const stored = localStorage.getItem('wr_user');
+        if (stored) {
+            const data = JSON.parse(stored);
+            setUser({
+                username: data.user?.name || MOCK_USER.username,
+                // In a real app level would come from the backend or player data
+                level: 1 
+            });
+        } else {
+            setUser({ username: MOCK_USER.username, level: MOCK_USER.level });
+        }
+    }, []);
 
     return (
         <header className="metal-panel chrome-border sticky top-4 z-20 mb-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl px-5 py-4">
@@ -27,7 +43,6 @@ export function TopNavigation() {
 
             <nav className="flex flex-wrap items-center gap-5 text-xs font-semibold uppercase tracking-[0.28em] text-[var(--text-secondary)] md:text-sm">
                 {topNav.map((item) => {
-                    // Just simple path matching
                     const isActive = pathname === item.href || (pathname === '/' && item.href === '/lobby');
                     return (
                         <Link
@@ -53,15 +68,17 @@ export function TopNavigation() {
                         </span>
                     )}
                 </div>
-                <div className="chrome-border flex cursor-pointer items-center gap-3 rounded-full bg-white/5 px-3 py-2 transition hover:bg-white/10">
-                    <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[var(--accent-gold)] to-[var(--accent-raw)]" />
-                    <div>
-                        <p className="text-sm font-semibold text-white">{MOCK_USER.username}</p>
-                        <p className="text-[11px] uppercase tracking-[0.24em] text-[var(--text-secondary)]">
-                            Level {MOCK_USER.level}
-                        </p>
-                    </div>
-                </div>
+                {user && (
+                    <Link href="/profile" className="chrome-border flex cursor-pointer items-center gap-3 rounded-full bg-white/5 px-3 py-2 transition hover:bg-white/10">
+                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[var(--accent-gold)] to-[var(--accent-raw)]" />
+                        <div>
+                            <p className="text-sm font-semibold text-white">{user.username}</p>
+                            <p className="text-[11px] uppercase tracking-[0.24em] text-[var(--text-secondary)]">
+                                Level {user.level}
+                            </p>
+                        </div>
+                    </Link>
+                )}
             </div>
         </header>
     );

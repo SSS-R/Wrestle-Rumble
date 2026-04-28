@@ -48,7 +48,8 @@ async def create_tables():
         CREATE TABLE players (
             id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
             age INTEGER DEFAULT 18,
-            trophy INTEGER DEFAULT 0
+            trophy INTEGER DEFAULT 0,
+            highest_trophy INTEGER DEFAULT 0
         );
 
         CREATE TABLE admins (
@@ -86,6 +87,7 @@ async def create_tables():
         CREATE TABLE player_matches (
             player_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
             match_id INTEGER REFERENCES matches(id) ON DELETE CASCADE,
+            card_id INTEGER,
             PRIMARY KEY (player_id, match_id)
         );
 
@@ -98,6 +100,7 @@ async def create_tables():
             signature VARCHAR(255),
             image VARCHAR(255),
             rarity VARCHAR(50) DEFAULT 'Common',
+            type VARCHAR(255) DEFAULT 'Base',
             price INTEGER DEFAULT 100
         );
 
