@@ -29,3 +29,35 @@ async def upload_card_image(file: UploadFile = File(...)):
     if not url:
         raise HTTPException(status_code=500, detail="Failed to save image")
     return {"url": url}
+
+@router.get("/cards/grouped")
+async def get_grouped_cards(conn: asyncpg.Connection = Depends(get_db)):
+    try:
+        grouped = await crud.get_grouped_cards(conn)
+        return grouped
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/cards/{card_id}")
+async def delete_card(card_id: int, conn: asyncpg.Connection = Depends(get_db)):
+    try:
+        await crud.delete_card(conn, card_id)
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/wrestlers/{wrestler_name}")
+async def delete_wrestler_cards(wrestler_name: str, conn: asyncpg.Connection = Depends(get_db)):
+    try:
+        await crud.delete_wrestler_cards(conn, wrestler_name)
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/cards")
+async def delete_all_cards(conn: asyncpg.Connection = Depends(get_db)):
+    try:
+        await crud.delete_all_cards(conn)
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

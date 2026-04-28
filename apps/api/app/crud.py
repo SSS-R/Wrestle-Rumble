@@ -41,3 +41,25 @@ async def create_event_card(conn: asyncpg.Connection, card_data):
         card_data.price
     )
     return dict(card)
+
+async def get_grouped_cards(conn: asyncpg.Connection):
+    rows = await conn.fetch("SELECT * FROM cards ORDER BY name, rarity")
+    
+    grouped = {}
+    for row in rows:
+        card = dict(row)
+        name = card['name']
+        if name not in grouped:
+            grouped[name] = []
+        grouped[name].append(card)
+        
+    return [{"name": name, "cards": cards} for name, cards in grouped.items()]
+
+async def delete_card(conn: asyncpg.Connection, card_id: int):
+    await conn.execute("DELETE FROM cards WHERE id = $1", card_id)
+
+async def delete_wrestler_cards(conn: asyncpg.Connection, wrestler_name: str):
+    await conn.execute("DELETE FROM cards WHERE name = $1", wrestler_name)
+
+async def delete_all_cards(conn: asyncpg.Connection):
+    await conn.execute("DELETE FROM cards")
