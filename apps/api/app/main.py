@@ -9,10 +9,16 @@ from .routes import auth, combat, packs, chat, admin, player
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: create connection pool
-    app.state.db_pool = await asyncpg.create_pool(settings.DATABASE_URL)
+    try:
+        app.state.db_pool = await asyncpg.create_pool(settings.DATABASE_URL)
+        print("Database connected")
+    except Exception as e:
+        print(f"Database connection failed: {e}")
+        app.state.db_pool = None
     yield
     # Shutdown: close connection pool
-    await app.state.db_pool.close()
+    if app.state.db_pool:
+        await app.state.db_pool.close()
 
 app = FastAPI(
     title="Wrestle Rumble API",

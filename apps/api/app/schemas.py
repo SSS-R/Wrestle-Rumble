@@ -85,6 +85,14 @@ class BattleCreate(BaseModel):
     opponent_card_id: Optional[int] = None
     user_card_id: int
 
+class BattleEvent(BaseModel):
+    timestamp: float
+    event_type: str
+    actor: str
+    description: str
+    damage: Optional[int] = None
+    effect: Optional[str] = None
+
 class BattleResult(BaseModel):
     match_id: int
     user_won: bool
@@ -92,6 +100,8 @@ class BattleResult(BaseModel):
     opponent_score: int
     trophies_gained: int
     coins_gained: int
+    duration: int = 15
+    events: List[BattleEvent] = []
 
 class LeaderboardEntry(BaseModel):
     rank: int

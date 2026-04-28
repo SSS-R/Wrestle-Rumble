@@ -46,26 +46,35 @@ export function TopNavigation() {
 
     useEffect(() => {
         const stored = localStorage.getItem('wr_user');
-        if (stored) {
-            const data = JSON.parse(stored);
-            const id = data.user?.id;
-            setUser({
-                id,
-                username: data.user?.name || MOCK_USER.username,
-                level: 1
-            });
-
-            // Check gift status for players only (admins have no player record)
-            if (id && data.role !== 'admin') {
-                fetch(`http://localhost:8000/api/player/${id}/gift-status`)
-                    .then(res => res.ok ? res.json() : null)
-                    .then(json => { if (json) setGiftAvailable(json.gift_available); })
-                    .catch(() => {});
-            }
-        } else {
-            setUser({ id: 0, username: MOCK_USER.username, level: MOCK_USER.level });
+        if (!stored) return;
+        const userData = JSON.parse(stored);
+        setUser(userData);
+        const playerId = userData.user?.id || userData.player?.id;
+        if (playerId) {
+            checkGiftStatus(playerId);
         }
     }, []);
+
+    const checkGiftStatus = async (playerId: number) => {
+        try {
+            const res = await fetch(`http://localhost:8000/api/player/${playerId}/gift-status`);
+            if (res.ok) {
+                const data = await res.json();
+                setGiftAvailable(data.gift_available);
+            }
+        } catch {
+            // Ignore errors
+        }
+    };
+
+    useEffect(() => {
+        if (user) {
+            const playerId = user.user?.id || user.player?.id;
+            if (playerId) {
+                checkGiftStatus(playerId);
+            }
+        }
+    }, [user]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -209,12 +218,12 @@ export function TopNavigation() {
                 {user && (
                     <Link href="/profile" className="chrome-border flex cursor-pointer items-center gap-3 rounded-full bg-white/5 px-3 py-2 transition hover:bg-white/10">
                         <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[var(--accent-gold)] to-[var(--accent-raw)] flex items-center justify-center text-xs font-bold text-white">
-                            {user.username.charAt(0).toUpperCase()}
+                            {(user.user?.name || user.username || 'U').charAt(0).toUpperCase()}
                         </div>
                         <div>
-                            <p className="text-sm font-semibold text-white">{user.username}</p>
+                            <p className="text-sm font-semibold text-white">{user.user?.name || user.username || 'User'}</p>
                             <p className="text-[11px] uppercase tracking-[0.24em] text-[var(--text-secondary)]">
-                                Level {user.level}
+                                Level {user.player?.age || 18}
                             </p>
                         </div>
                     </Link>

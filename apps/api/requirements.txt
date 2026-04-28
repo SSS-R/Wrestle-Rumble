@@ -1,9 +1,8 @@
 fastapi==0.115.12
 uvicorn[standard]==0.34.0
 psycopg[binary]==3.2.10
-asyncpg==0.30.0
 pydantic-settings==2.6.1
 python-dotenv==1.0.1
 passlib[bcrypt]==1.7.4
-pydantic[email]==2.11.3
+pydantic==2.11.3
 python-multipart==0.0.20
