@@ -117,7 +117,7 @@ export function BattleArena({ userCard, opponentCard, onBattleComplete, onBack }
             playBattleAnimation(data.events);
         } catch (error) {
             console.error('Battle error:', error);
-            const mockEvents = generateMockEvents(userCard, opponentCard, 60);
+            const mockEvents = generateMockEvents(userCard, opponentCard, 15);
             setEvents(mockEvents);
             setResult({
                 match_id: Date.now(),
@@ -126,7 +126,7 @@ export function BattleArena({ userCard, opponentCard, onBattleComplete, onBack }
                 opponent_score: Math.floor(Math.random() * 50) + 60,
                 trophies_gained: 15,
                 coins_gained: 0,
-                duration: 60,
+                duration: 15,
                 events: mockEvents,
             });
             playBattleAnimation(mockEvents);
