@@ -60,7 +60,7 @@ export function RosterScreen() {
                 setCards(json.cards || []);
                 setFiltered(json.cards || []);
             })
-            .catch(() => {})
+            .catch(() => { })
             .finally(() => setLoading(false));
     }, []);
 
@@ -90,7 +90,7 @@ export function RosterScreen() {
                     <div className="mt-4 flex gap-3 md:mt-0">
                         <input
                             type="text"
-                            placeholder="Search roster..."
+                            placeholder="Search cards..."
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                             className="chrome-border rounded-xl bg-black/40 px-4 py-2 text-sm placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[var(--accent-raw)] text-white"
