@@ -262,3 +262,93 @@ async def get_player_inventory(player_id: int, conn: asyncpg.Connection = Depend
 
     cards = [dict(r) for r in rows]
     return {"total": len(cards), "cards": cards}
+
+
+import random as _random
+
+class GiftCard(BaseModel):
+    id: int
+    name: str
+    att: int
+    def_: int
+    rarity: str
+    type: str
+    image: Optional[str]
+
+class GiftStatusResponse(BaseModel):
+    gift_available: bool
+    gift_claimed: bool
+
+class GiftClaimResponse(BaseModel):
+    coins_awarded: int
+    cards: list[GiftCard]
+    message: str
+
+@router.get("/{player_id}/gift-status", response_model=GiftStatusResponse)
+async def get_gift_status(player_id: int, conn: asyncpg.Connection = Depends(get_db)):
+    player = await conn.fetchrow("SELECT gift_claimed FROM players WHERE id = $1", player_id)
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+    return {
+        "gift_available": not player['gift_claimed'],
+        "gift_claimed": player['gift_claimed'],
+    }
+
+@router.post("/{player_id}/claim-gift", response_model=GiftClaimResponse)
+async def claim_gift(player_id: int, conn: asyncpg.Connection = Depends(get_db)):
+    # Check eligibility
+    player = await conn.fetchrow("SELECT gift_claimed FROM players WHERE id = $1", player_id)
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+    if player['gift_claimed']:
+        raise HTTPException(status_code=400, detail="Gift already claimed")
+
+    # Pick 2 random cards from the DB
+    all_cards = await conn.fetch("SELECT id, name, att, def as def_, rarity, type, image FROM cards ORDER BY RANDOM() LIMIT 2")
+    if not all_cards:
+        raise HTTPException(status_code=404, detail="No cards available in database")
+
+    coins_awarded = _random.randint(200, 1000)
+
+    # Get or create inventory
+    inventory = await conn.fetchrow("SELECT id FROM inventories WHERE player_id = $1", player_id)
+
+    async with conn.transaction():
+        if not inventory:
+            inventory = await conn.fetchrow(
+                "INSERT INTO inventories (player_id, coins) VALUES ($1, $2) RETURNING id",
+                player_id, coins_awarded
+            )
+        else:
+            await conn.execute(
+                "UPDATE inventories SET coins = coins + $1 WHERE player_id = $2",
+                coins_awarded, player_id
+            )
+            inventory = await conn.fetchrow("SELECT id FROM inventories WHERE player_id = $1", player_id)
+
+        # Add the 2 random cards to inventory
+        for card in all_cards:
+            existing = await conn.fetchrow(
+                "SELECT quantity FROM inventory_cards WHERE inventory_id = $1 AND card_id = $2",
+                inventory['id'], card['id']
+            )
+            if existing:
+                await conn.execute(
+                    "UPDATE inventory_cards SET quantity = quantity + 1 WHERE inventory_id = $1 AND card_id = $2",
+                    inventory['id'], card['id']
+                )
+            else:
+                await conn.execute(
+                    "INSERT INTO inventory_cards (inventory_id, card_id, quantity, is_active) VALUES ($1, $2, 1, FALSE)",
+                    inventory['id'], card['id']
+                )
+
+        # Mark gift as claimed
+        await conn.execute("UPDATE players SET gift_claimed = TRUE WHERE id = $1", player_id)
+
+    awarded_cards = [dict(c) for c in all_cards]
+    return {
+        "coins_awarded": coins_awarded,
+        "cards": awarded_cards,
+        "message": f"Welcome to the arena! You've received {coins_awarded} coins and 2 cards!"
+    }

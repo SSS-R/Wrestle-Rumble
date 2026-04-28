@@ -49,7 +49,8 @@ async def create_tables():
             id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
             age INTEGER DEFAULT 18,
             trophy INTEGER DEFAULT 0,
-            highest_trophy INTEGER DEFAULT 0
+            highest_trophy INTEGER DEFAULT 0,
+            gift_claimed BOOLEAN DEFAULT FALSE
         );
 
         CREATE TABLE admins (
