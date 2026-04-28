@@ -76,11 +76,17 @@ export function BattleArena({ userCard, opponentCard, onBattleComplete, onBack }
             });
         }
         
+        const userBase = userCard.atk * 0.7 + userCard.def * 0.3;
+        const oppBase = opponentCard.atk * 0.7 + opponentCard.def * 0.3;
+        const userFinal = Math.floor(userBase * (0.85 + Math.random() * 0.3));
+        const oppFinal = Math.floor(oppBase * (0.85 + Math.random() * 0.3));
+        const userWon = userFinal > oppFinal;
+        
         events.push({
             timestamp: duration,
             event_type: 'conclusion',
             actor: 'referee',
-            description: 'Battle complete',
+            description: `${userWon ? userCard.name : opponentCard.name} WINS!`,
             damage: null,
             effect: null,
         });
