@@ -66,7 +66,10 @@ async def start_battle(battle_data: BattleCreate, conn: asyncpg.Connection = Dep
     # 5. Apply Rewards
     async with conn.transaction():
         if user_won:
-            await conn.execute("UPDATE players SET trophy = trophy + $1 WHERE id = $2", trophies_gained, user_player['id'])
+            await conn.execute(
+                "UPDATE players SET trophy = trophy + $1, highest_trophy = GREATEST(highest_trophy, trophy + $1) WHERE id = $2", 
+                trophies_gained, user_player['id']
+            )
             await conn.execute("UPDATE inventories SET coins = coins + $1 WHERE player_id = $2", coins_gained, user_player['id'])
         else:
             await conn.execute("UPDATE players SET trophy = GREATEST(0, trophy - $1) WHERE id = $2", trophies_gained, user_player['id'])
@@ -81,9 +84,10 @@ async def start_battle(battle_data: BattleCreate, conn: asyncpg.Connection = Dep
             "1v1", datetime.now(), random.randint(60, 300), user_player['id'] if user_won else (opponent_player['id'] if opponent_player else None)
         )
         
-        await conn.execute("INSERT INTO player_matches (player_id, match_id) VALUES ($1, $2)", user_player['id'], match_id)
-        if opponent_player:
-            await conn.execute("INSERT INTO player_matches (player_id, match_id) VALUES ($1, $2)", opponent_player['id'], match_id)
+        await conn.execute("INSERT INTO player_matches (player_id, match_id, card_id) VALUES ($1, $2, $3)", user_player['id'], match_id, battle_data.user_card_id)
+        if opponent_player and opponent_card_entry:
+            await conn.execute("INSERT INTO player_matches (player_id, match_id, card_id) VALUES ($1, $2, $3)", opponent_player['id'], match_id, opponent_card_entry['card_id'])
+
 
     return BattleResult(
         match_id=match_id,

@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncpg
 from .config import settings
-from .routes import auth, combat, packs, chat, admin
+from .routes import auth, combat, packs, chat, admin, player
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -38,6 +38,7 @@ app.include_router(combat.router)
 app.include_router(packs.router)
 app.include_router(chat.router)
 app.include_router(admin.router)
+app.include_router(player.router)
 
 
 @app.get("/")
