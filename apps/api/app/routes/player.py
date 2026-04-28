@@ -103,3 +103,114 @@ async def get_player_profile(player_id: int, conn: asyncpg.Connection = Depends(
         "win_rate": round(win_rate, 1),
         "best_card": best_card
     }
+
+
+class RecentMatch(BaseModel):
+    match_id: int
+    result: str  # 'W' or 'L'
+    opponent_name: str
+    user_score: int
+    opponent_score: int
+    date_label: str
+
+class LobbyStatsResponse(BaseModel):
+    username: str
+    trophy: int
+    coins: int
+    total_matches: int
+    total_wins: int
+    recent_matches: list[RecentMatch]
+
+@router.get("/{player_id}/lobby", response_model=LobbyStatsResponse)
+async def get_lobby_stats(player_id: int, conn: asyncpg.Connection = Depends(get_db)):
+    # 1. Basic player info
+    user_data = await conn.fetchrow(
+        """
+        SELECT u.name as username, p.trophy
+        FROM users u JOIN players p ON u.id = p.id
+        WHERE u.id = $1
+        """,
+        player_id
+    )
+    if not user_data:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    # 2. Coins
+    inventory = await conn.fetchrow("SELECT coins FROM inventories WHERE player_id = $1", player_id)
+    coins = inventory['coins'] if inventory else 0
+
+    # 3. Total match stats
+    match_stats = await conn.fetchrow(
+        """
+        SELECT COUNT(m.id) as total_matches,
+               SUM(CASE WHEN m.winner_id = $1 THEN 1 ELSE 0 END) as total_wins
+        FROM player_matches pm
+        JOIN matches m ON pm.match_id = m.id
+        WHERE pm.player_id = $1
+        """,
+        player_id
+    )
+    total_matches = match_stats['total_matches'] or 0
+    total_wins = match_stats['total_wins'] or 0
+
+    # 4. Last 3 matches with opponent name + score
+    recent_rows = await conn.fetch(
+        """
+        SELECT
+            m.id as match_id,
+            m.winner_id,
+            m.start_time,
+            opp_u.name as opponent_name,
+            pm_self.card_id as self_card_id,
+            pm_opp.card_id as opp_card_id,
+            self_c.att + self_c.def as user_score,
+            opp_c.att + opp_c.def as opponent_score
+        FROM player_matches pm_self
+        JOIN matches m ON pm_self.match_id = m.id
+        -- find the opponent in the same match
+        LEFT JOIN player_matches pm_opp ON pm_opp.match_id = m.id AND pm_opp.player_id != $1
+        LEFT JOIN users opp_u ON pm_opp.player_id = opp_u.id
+        -- card scores (rough display score from card stats)
+        LEFT JOIN cards self_c ON pm_self.card_id = self_c.id
+        LEFT JOIN cards opp_c ON pm_opp.card_id = opp_c.id
+        WHERE pm_self.player_id = $1
+        ORDER BY m.start_time DESC
+        LIMIT 3
+        """,
+        player_id
+    )
+
+    from datetime import datetime, timezone
+
+    def date_label(ts):
+        if ts is None:
+            return "Unknown"
+        now = datetime.now(timezone.utc)
+        delta = now - ts.replace(tzinfo=timezone.utc) if ts.tzinfo is None else now - ts
+        days = delta.days
+        if days == 0:
+            return "Today"
+        elif days == 1:
+            return "Yesterday"
+        else:
+            return f"{days} days ago"
+
+    recent_matches = []
+    for row in recent_rows:
+        recent_matches.append({
+            "match_id": row['match_id'],
+            "result": "W" if row['winner_id'] == player_id else "L",
+            "opponent_name": row['opponent_name'] or "CPU",
+            "user_score": row['user_score'] or 0,
+            "opponent_score": row['opponent_score'] or 0,
+            "date_label": date_label(row['start_time']),
+        })
+
+    return {
+        "username": user_data['username'],
+        "trophy": user_data['trophy'],
+        "coins": coins,
+        "total_matches": total_matches,
+        "total_wins": total_wins,
+        "recent_matches": recent_matches,
+    }
