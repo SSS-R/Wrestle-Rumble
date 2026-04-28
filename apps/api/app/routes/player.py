@@ -214,3 +214,51 @@ async def get_lobby_stats(player_id: int, conn: asyncpg.Connection = Depends(get
         "total_wins": total_wins,
         "recent_matches": recent_matches,
     }
+
+
+class InventoryCard(BaseModel):
+    id: int
+    name: str
+    att: int
+    def_: int
+    finisher: Optional[str]
+    signature: Optional[str]
+    image: Optional[str]
+    rarity: str
+    type: str
+    price: int
+    quantity: int
+    is_active: bool
+
+class InventoryResponse(BaseModel):
+    total: int
+    cards: list[InventoryCard]
+
+@router.get("/{player_id}/inventory", response_model=InventoryResponse)
+async def get_player_inventory(player_id: int, conn: asyncpg.Connection = Depends(get_db)):
+    inventory = await conn.fetchrow("SELECT id FROM inventories WHERE player_id = $1", player_id)
+    if not inventory:
+        return {"total": 0, "cards": []}
+
+    rows = await conn.fetch(
+        """
+        SELECT c.id, c.name, c.att, c.def as def_, c.finisher, c.signature, c.image,
+               c.rarity, c.type, c.price,
+               ic.quantity, ic.is_active
+        FROM inventory_cards ic
+        JOIN cards c ON ic.card_id = c.id
+        WHERE ic.inventory_id = $1
+        ORDER BY
+            CASE c.rarity
+                WHEN 'Legendary' THEN 1
+                WHEN 'Gold' THEN 2
+                WHEN 'Rare' THEN 3
+                ELSE 4
+            END,
+            c.name ASC
+        """,
+        inventory['id']
+    )
+
+    cards = [dict(r) for r in rows]
+    return {"total": len(cards), "cards": cards}
