@@ -192,13 +192,30 @@ export default function BattlePage() {
 
                 {phase === 'select' && (
                     <>
-                        <div className="mb-8 text-center">
-                            <h2 className="font-[var(--font-display)] text-5xl uppercase tracking-[0.15em] text-white">
-                                ⚔️ Battle Arena
-                            </h2>
-                            <p className="mt-2 text-sm uppercase tracking-[0.2em] text-[var(--text-secondary)]">
-                                Select your champion to fight!
-                            </p>
+                        <div className="mb-6 flex items-center justify-between">
+                            <div>
+                                <h2 className="font-[var(--font-display)] text-4xl uppercase tracking-[0.15em] text-white">
+                                    ⚔️ Battle Arena
+                                </h2>
+                                <p className="mt-1 text-sm uppercase tracking-[0.2em] text-[var(--text-secondary)]">
+                                    Practice with random opponents
+                                </p>
+                            </div>
+                            
+                            <div className="flex items-center gap-3 rounded-full border border-white/10 bg-black/40 p-1.5">
+                                <button
+                                    disabled
+                                    className="rounded-full bg-[var(--accent-raw)] px-5 py-2 text-xs font-bold uppercase tracking-[0.15em] text-white shadow-[0_0_15px_rgba(226,26,44,0.4)]"
+                                >
+                                    🎯 Practice
+                                </button>
+                                <button
+                                    disabled
+                                    className="rounded-full px-5 py-2 text-xs font-bold uppercase tracking-[0.15em] text-[var(--text-secondary)] cursor-not-allowed opacity-50"
+                                >
+                                    🏆 Ranked
+                                </button>
+                            </div>
                         </div>
 
                         <div className="mb-6 flex items-center justify-between">
@@ -287,7 +304,7 @@ export default function BattlePage() {
                                 <div className="text-6xl font-[var(--font-display)] uppercase tracking-[0.2em] text-[var(--accent-raw)] animate-pulse">
                                     VS
                                 </div>
-                                <div className="aspect-[2/3] w-48 animate-spin-slow rounded-2xl border-4 border-dashed border-zinc-600 bg-gradient-to-br from-zinc-800 to-black p-4">
+                                <div className="aspect-[2/3] w-48 rounded-2xl border-4 border-dashed border-zinc-600 bg-gradient-to-br from-zinc-800 to-black p-4">
                                     <div className="flex h-full items-center justify-center">
                                         <span className="text-4xl text-zinc-500">?</span>
                                     </div>
@@ -453,9 +470,6 @@ export default function BattlePage() {
                 @keyframes spin-slow {
                     from { transform: rotate(0deg); }
                     to { transform: rotate(360deg); }
-                }
-                .animate-spin-slow {
-                    animation: spin-slow 3s linear infinite;
                 }
             `}</style>
         </main>

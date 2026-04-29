@@ -107,13 +107,13 @@ def calculate_battle_score(user_card: dict, opponent_card: dict, events: list = 
     
     return int(user_score), int(opponent_score)
 
-def calculate_rewards(user_won: bool, user_level: int, opponent_trophies: int = None) -> tuple[int, int]:
+def calculate_rewards(user_won: bool, user_level: int, opponent_trophies: int = None, ranked: bool = False) -> tuple[int, int]:
     if user_won:
-        base_trophies = 15
-        base_coins = 100
+        base_trophies = 25 if ranked else 15
+        base_coins = 200 if ranked else 100
         if opponent_trophies and opponent_trophies > user_level * 5:
-            base_trophies += 5
-            base_coins += 50
+            base_trophies += 5 if ranked else 3
+            base_coins += 50 if ranked else 25
         return base_trophies, base_coins
     else:
-        return 0, 25
+        return 0, 50 if ranked else 25

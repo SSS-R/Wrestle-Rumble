@@ -124,14 +124,15 @@ export function BattleArena({ userCard, opponentCard, onBattleComplete, onBack }
         } catch (error) {
             console.error('Battle error:', error);
             const mockEvents = generateMockEvents(userCard, opponentCard, 15);
+            const userWon = Math.random() > 0.5;
             setEvents(mockEvents);
             setResult({
                 match_id: Date.now(),
-                user_won: Math.random() > 0.5,
+                user_won: userWon,
                 user_score: Math.floor(Math.random() * 50) + 80,
                 opponent_score: Math.floor(Math.random() * 50) + 60,
-                trophies_gained: 15,
-                coins_gained: 0,
+                trophies_gained: userWon ? 15 : 0,
+                coins_gained: userWon ? 100 : 25,
                 duration: 15,
                 events: mockEvents,
             });
@@ -308,6 +309,10 @@ export function BattleArena({ userCard, opponentCard, onBattleComplete, onBack }
                                     <div className="text-center">
                                         <p className="text-2xl font-bold text-[var(--accent-gold)]">🏆 15</p>
                                         <p className="text-[10px] uppercase text-[var(--text-secondary)]">Trophies (Win)</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-2xl font-bold text-[var(--accent-gold)]">🪙 100</p>
+                                        <p className="text-[10px] uppercase text-[var(--text-secondary)]">Coins (Win)</p>
                                     </div>
                                 </div>
                             </div>

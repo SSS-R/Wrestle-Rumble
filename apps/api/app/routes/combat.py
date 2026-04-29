@@ -60,11 +60,12 @@ async def start_battle(battle_data: BattleCreate, conn: asyncpg.Connection = Dep
     opp_player_id = opponent_card_entry.get('player_id') or battle_data.opponent_id
     opponent_player = await conn.fetchrow("SELECT * FROM players WHERE id = $1", opp_player_id) if opp_player_id else None
 
-    # 5. Calculate Rewards
+    # 5. Calculate Rewards (ranked gives more)
     trophies_gained, coins_gained = calculate_rewards(
         user_won,
         user_player['age'],
-        opponent_player['trophy'] if opponent_player else None
+        opponent_player['trophy'] if opponent_player else None,
+        battle_data.ranked
     )
 
     # 6. Apply Rewards & Record Match
