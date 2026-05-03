@@ -47,6 +47,15 @@ export default function AdminDashboard() {
     // Packs Management State
     const [isPacksModalOpen, setIsPacksModalOpen] = useState(false);
     const [packsList, setPacksList] = useState<any[]>([]);
+    const [newCustomPack, setNewCustomPack] = useState({
+        type: '',
+        price: 500,
+        min_coin: 100,
+        max_coin: 300,
+        is_event: false,
+        event_name: '',
+        cards_config: '[\n  { "type": "random", "count": 3, "weights": { "Special": 100 } }\n]'
+    });
 
     const fetchPacks = async () => {
         try {
@@ -59,6 +68,32 @@ export default function AdminDashboard() {
             console.error("Failed to fetch packs:", error);
         }
     };
+
+    const [eventsList, setEventsList] = useState<any[]>([]);
+
+    const fetchEvents = async () => {
+        try {
+            const res = await fetch('http://localhost:8000/api/admin/events');
+            if (res.ok) {
+                const data = await res.json();
+                setEventsList(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch events:", error);
+        }
+    };
+
+    // Event Management State
+    const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+    const [newEventData, setNewEventData] = useState({
+        name: '',
+        entry_trophy: 0,
+        start_time: new Date().toISOString().slice(0, 16),
+        end_time: new Date(Date.now() + 86400000 * 7).toISOString().slice(0, 16),
+        pack_price: 500,
+        pack_min_coin: 100,
+        pack_max_coin: 300
+    });
 
     // Card Database State
     const [groupedCards, setGroupedCards] = useState<any[]>([]);
@@ -89,6 +124,8 @@ export default function AdminDashboard() {
         }
         setUser(data.user);
         fetchGroupedCards();
+        fetchEvents();
+        fetchPacks();
     }, [router]);
 
     const handleFileUpload = async (file: File, callback: (url: string) => void) => {
@@ -131,7 +168,8 @@ export default function AdminDashboard() {
                     att: Number(eventData.att),
                     def: Number(eventData.def),
                     price: Number(eventData.price),
-                    type: eventData.type || 'Event'
+                    type: eventData.type, // from select
+                    rarity: 'Special' // Fixed
                 };
             }
 
@@ -293,6 +331,7 @@ export default function AdminDashboard() {
                             </button>
                             <button onClick={() => { setIsUsersModalOpen(true); fetchUsers(); }} className="bg-[var(--bg-tertiary)] chrome-border hover:bg-[var(--accent-smackdown)] p-3 rounded text-left transition-colors text-sm font-bold uppercase tracking-wider">Manage Users</button>
                             <button onClick={() => { setIsPacksModalOpen(true); fetchPacks(); }} className="bg-[var(--bg-tertiary)] chrome-border hover:bg-[var(--accent-smackdown)] p-3 rounded text-left transition-colors text-sm font-bold uppercase tracking-wider">Configure Packs</button>
+                            <button onClick={() => setIsEventModalOpen(true)} className="bg-[var(--bg-tertiary)] chrome-border hover:bg-[var(--accent-smackdown)] p-3 rounded text-left transition-colors text-sm font-bold uppercase tracking-wider">Event Management</button>
                         </div>
                     </div>
                 </div>
@@ -496,15 +535,17 @@ export default function AdminDashboard() {
                                     <div className="grid grid-cols-3 gap-4 border-t border-white/10 pt-4 mt-4">
                                         <div className="space-y-1">
                                             <label className="text-xs font-bold uppercase text-gray-400 tracking-wider">Event Name (Type)</label>
-                                            <input required type="text" value={eventData.type} onChange={e => setEventData({...eventData, type: e.target.value})} className="w-full bg-[var(--accent-gold)]/10 border border-[var(--accent-gold)]/50 rounded p-2 text-white" placeholder="WrestleMania 40" />
+                                            <select required value={eventData.type} onChange={e => setEventData({...eventData, type: e.target.value})} className="w-full bg-[var(--accent-gold)]/10 border border-[var(--accent-gold)]/50 rounded p-2 text-white">
+                                                <option value="" disabled>Select Event...</option>
+                                                {eventsList.map(ev => (
+                                                    <option key={ev.id} value={ev.name}>{ev.name}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-xs font-bold uppercase text-gray-400 tracking-wider">Rarity</label>
-                                            <select value={eventData.rarity} onChange={e => setEventData({...eventData, rarity: e.target.value})} className="w-full bg-black/60 border border-white/10 rounded p-2 text-white">
-                                                <option>Common</option>
-                                                <option>Rare</option>
-                                                <option>Gold</option>
-                                                <option>Legendary</option>
+                                            <select disabled value="Special" className="w-full bg-black/60 border border-white/10 rounded p-2 text-white opacity-50 cursor-not-allowed">
+                                                <option value="Special">Special</option>
                                             </select>
                                         </div>
                                         <div className="space-y-1">
@@ -603,6 +644,73 @@ export default function AdminDashboard() {
                         <h2 className="text-2xl font-bold mb-6 font-[var(--font-heading)] uppercase text-white">Configure Packs</h2>
                         
                         <div className="overflow-y-auto pr-2 flex-1 space-y-6">
+                            
+                            <div className="mb-2 border border-[var(--accent-gold)]/30 bg-black/40 p-6 rounded-xl">
+                                <h3 className="text-xl font-bold mb-4 text-[var(--accent-gold)] uppercase tracking-wider">Create Custom Pack</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Pack Name</label>
+                                        <input type="text" value={newCustomPack.type} onChange={e => setNewCustomPack({...newCustomPack, type: e.target.value})} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" placeholder="e.g. Promo Pack" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Price</label>
+                                        <input type="number" value={newCustomPack.price} onChange={e => setNewCustomPack({...newCustomPack, price: Number(e.target.value)})} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Min Coins</label>
+                                        <input type="number" value={newCustomPack.min_coin} onChange={e => setNewCustomPack({...newCustomPack, min_coin: Number(e.target.value)})} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Max Coins</label>
+                                        <input type="number" value={newCustomPack.max_coin} onChange={e => setNewCustomPack({...newCustomPack, max_coin: Number(e.target.value)})} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" />
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-4 mb-4">
+                                    <label className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-white">
+                                        <input type="checkbox" checked={newCustomPack.is_event} onChange={e => setNewCustomPack({...newCustomPack, is_event: e.target.checked})} className="w-4 h-4 accent-[var(--accent-gold)]" />
+                                        Is Event Pack?
+                                    </label>
+                                    {newCustomPack.is_event && (
+                                        <select value={newCustomPack.event_name} onChange={e => setNewCustomPack({...newCustomPack, event_name: e.target.value, type: e.target.value + ' Pack'})} className="bg-black/60 border border-[var(--accent-gold)] rounded p-2 text-white font-bold flex-1">
+                                            <option value="" disabled>Select Event...</option>
+                                            {eventsList.map(ev => <option key={ev.id} value={ev.name}>{ev.name}</option>)}
+                                        </select>
+                                    )}
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Cards Config (JSON)</label>
+                                    <textarea value={newCustomPack.cards_config} onChange={e => setNewCustomPack({...newCustomPack, cards_config: e.target.value})} className="w-full bg-black/60 border border-white/20 rounded p-3 text-white font-mono text-xs h-24 custom-scrollbar focus:border-[var(--accent-smackdown)] outline-none" />
+                                </div>
+                                <div className="flex justify-end">
+                                    <button onClick={async () => {
+                                        try {
+                                            const payload = {
+                                                ...newCustomPack,
+                                                cards_config: JSON.parse(newCustomPack.cards_config),
+                                                store_id: 1
+                                            };
+                                            const res = await fetch(`http://localhost:8000/api/admin/packs`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify(payload)
+                                            });
+                                            if(res.ok) { 
+                                                alert("Pack Created Successfully!"); 
+                                                fetchPacks(); 
+                                                setNewCustomPack({...newCustomPack, type: ''});
+                                            } else {
+                                                alert("Failed to create custom pack");
+                                            }
+                                        } catch(e) { 
+                                            alert("Invalid JSON format in config."); 
+                                        }
+                                    }} className="bg-[var(--accent-gold)] text-black px-6 py-2 rounded font-bold uppercase tracking-wider text-sm transition-colors hover:bg-yellow-500 shadow-[0_0_15px_rgba(212,175,55,0.4)]">
+                                        + Create Custom Pack
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <h3 className="text-xl font-bold pt-4 mb-2 text-white uppercase tracking-wider border-b border-white/10 pb-2">Existing Packs</h3>
                             {packsList.length === 0 ? (
                                 <p className="text-[var(--text-secondary)] italic">No packs found.</p>
                             ) : (
@@ -684,6 +792,73 @@ export default function AdminDashboard() {
                                     </div>
                                 ))
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Event Management Modal */}
+            {isEventModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-black/80">
+                    <div className="metal-panel chrome-border relative w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col rounded-2xl p-6 shadow-2xl">
+                        <button onClick={() => setIsEventModalOpen(false)} className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20">
+                            ✕
+                        </button>
+                        
+                        <h2 className="text-2xl font-bold mb-6 font-[var(--font-heading)] uppercase text-white">Create New Event</h2>
+                        
+                        <div className="overflow-y-auto pr-2 flex-1 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Event Name</label>
+                                    <input type="text" value={newEventData.name} onChange={e => setNewEventData({...newEventData, name: e.target.value})} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" placeholder="e.g. WrestleMania" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Entry Trophy</label>
+                                    <input type="number" value={newEventData.entry_trophy} onChange={e => setNewEventData({...newEventData, entry_trophy: Number(e.target.value)})} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Start Time</label>
+                                    <input type="datetime-local" value={newEventData.start_time} onChange={e => setNewEventData({...newEventData, start_time: e.target.value})} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">End Time</label>
+                                    <input type="datetime-local" value={newEventData.end_time} onChange={e => setNewEventData({...newEventData, end_time: e.target.value})} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" />
+                                </div>
+                            </div>
+                            
+                            <div className="mt-6 flex justify-end pt-4">
+                                <button 
+                                    onClick={async () => {
+                                        if(!newEventData.name.trim()) { alert("Please enter an event name."); return; }
+                                        try {
+                                            const res = await fetch(`http://localhost:8000/api/admin/events`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                    name: newEventData.name,
+                                                    entry_trophy: newEventData.entry_trophy,
+                                                    start_time: new Date(newEventData.start_time).toISOString(),
+                                                    end_time: new Date(newEventData.end_time).toISOString(),
+                                                })
+                                            });
+                                            if (res.ok) {
+                                                alert(`Event ${newEventData.name} Created successfully!`);
+                                                setIsEventModalOpen(false);
+                                                fetchEvents(); // refresh events list for dropdowns
+                                                setNewEventData({...newEventData, name: ''}); // reset
+                                            } else {
+                                                alert("Failed to create event");
+                                            }
+                                        } catch (err) {
+                                            alert("Network error");
+                                        }
+                                    }}
+                                    className="w-full bg-[var(--accent-gold)] hover:bg-yellow-600 text-black px-6 py-4 rounded-xl font-bold uppercase tracking-wider transition-colors shadow-[0_0_15px_rgba(212,175,55,0.4)]"
+                                >
+                                    Create Event
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

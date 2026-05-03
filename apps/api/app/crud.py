@@ -1,4 +1,5 @@
 import asyncpg
+import json
 
 async def create_base_cards(conn: asyncpg.Connection, card_data):
     cards = []
@@ -76,7 +77,6 @@ async def get_all_players_with_coins(conn: asyncpg.Connection):
 
 async def update_player_coins(conn: asyncpg.Connection, player_id: int, coins: int):
     await conn.execute("UPDATE inventories SET coins = $1 WHERE player_id = $2", coins, player_id)
-import json
 
 async def get_packs(conn: asyncpg.Connection):
     rows = await conn.fetch("SELECT * FROM packs ORDER BY id")
@@ -110,3 +110,14 @@ async def save_pack(conn: asyncpg.Connection, pack_data, pack_id: int = None):
     if isinstance(d.get('cards_config'), str):
         d['cards_config'] = json.loads(d['cards_config'])
     return d
+
+async def create_event(conn: asyncpg.Connection, event_data):
+    event = await conn.fetchrow("""
+        INSERT INTO events (name, start_time, end_time, entry_trophy)
+        VALUES ($1, $2, $3, $4) RETURNING *
+    """, event_data.name, event_data.start_time, event_data.end_time, event_data.entry_trophy)
+    return dict(event)
+
+async def get_events(conn: asyncpg.Connection):
+    rows = await conn.fetch("SELECT * FROM events ORDER BY start_time DESC")
+    return [dict(r) for r in rows]

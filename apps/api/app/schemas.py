@@ -120,3 +120,16 @@ class PackResponse(PackCreate):
     id: int
     class Config:
         from_attributes = True
+
+class EventCreate(BaseModel):
+    name: str
+    entry_trophy: int
+    start_time: datetime
+    end_time: datetime
+
+class EventResponse(BaseModel):
+    id: int
+    name: str
+    entry_trophy: int
+    start_time: datetime
+    end_time: datetime

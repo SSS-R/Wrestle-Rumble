@@ -104,3 +104,20 @@ async def update_pack(pack_id: int, pack: PackCreate, conn: asyncpg.Connection =
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+from ..schemas import EventCreate, EventResponse
+
+@router.post("/events", response_model=EventResponse)
+async def create_event_route(event: EventCreate, conn: asyncpg.Connection = Depends(get_db)):
+    try:
+        saved = await crud.create_event(conn, event)
+        return saved
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/events", response_model=List[EventResponse])
+async def get_events(conn: asyncpg.Connection = Depends(get_db)):
+    try:
+        return await crud.get_events(conn)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
