@@ -103,6 +103,13 @@ class BattleResult(BaseModel):
     coins_gained: int
     duration: int = 15
     events: List[BattleEvent] = []
+    opponent_card_id: int
+    opponent_card_name: str
+    opponent_card_rarity: str
+    opponent_card_att: int
+    opponent_card_def: int
+    opponent_card_signature: Optional[str] = None
+    opponent_card_finisher: Optional[str] = None
 
 class LeaderboardEntry(BaseModel):
     rank: int
@@ -113,3 +120,18 @@ class LeaderboardEntry(BaseModel):
 class PackOpenResponse(BaseModel):
     cards: List[InventoryCardResponse]
     coins_gained: int = 0
+
+
+class QueueStatus(BaseModel):
+    queued: bool
+    waiting_time: int
+    match_found: bool = False
+    opponent_id: Optional[int] = None
+
+
+class MatchmakingResult(BaseModel):
+    match_id: int
+    player1_id: int
+    player2_id: int
+    player1_card: dict
+    player2_card: dict

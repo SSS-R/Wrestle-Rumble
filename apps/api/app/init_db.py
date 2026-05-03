@@ -154,6 +154,15 @@ async def create_tables():
             card_id INTEGER REFERENCES cards(id) ON DELETE CASCADE,
             PRIMARY KEY (trade_id, card_id)
         );
+
+        CREATE TABLE matchmaking_queue (
+            id SERIAL PRIMARY KEY,
+            player_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+            trophy INTEGER DEFAULT 0,
+            joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            matched_at TIMESTAMP WITH TIME ZONE,
+            matched_with INTEGER REFERENCES players(id) ON DELETE SET NULL
+        );
         ''')
         print("New DBML tables created successfully.")
     except Exception as e:

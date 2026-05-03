@@ -27,10 +27,18 @@ type BattleResult = {
     coins_gained: number;
     duration: number;
     events: any[];
+    opponent_card_id: number;
+    opponent_card_name: string;
+    opponent_card_rarity: string;
+    opponent_card_att: number;
+    opponent_card_def: number;
+    opponent_card_signature?: string;
+    opponent_card_finisher?: string;
 };
 
 export default function BattlePage() {
     const router = useRouter();
+    const [battleMode, setBattleMode] = useState<'practice' | 'multiplayer'>('practice');
     const [phase, setPhase] = useState<'select' | 'searching' | 'prematch' | 'battle' | 'complete'>('select');
     const [selectedCard, setSelectedCard] = useState<Card | null>(null);
     const [opponentCard, setOpponentCard] = useState<Card | null>(null);
@@ -88,22 +96,39 @@ export default function BattlePage() {
 
     const startMatchmaking = () => {
         if (!selectedCard) return;
-        setPhase('searching');
-        setSearchProgress(0);
-
-        const searchInterval = setInterval(() => {
-            setSearchProgress(prev => {
-                if (prev >= 100) {
-                    clearInterval(searchInterval);
-                    findOpponent();
-                    return 100;
-                }
-                return prev + 2;
-            });
-        }, 50);
+        
+        if (battleMode === 'practice') {
+            setPhase('searching');
+            setSearchProgress(0);
+            
+            const searchInterval = setInterval(() => {
+                setSearchProgress(prev => {
+                    if (prev >= 100) {
+                        clearInterval(searchInterval);
+                        findPracticeOpponent();
+                        return 100;
+                    }
+                    return prev + 2;
+                });
+            }, 50);
+        } else {
+            setPhase('searching');
+            setSearchProgress(0);
+            
+            const searchInterval = setInterval(() => {
+                setSearchProgress(prev => {
+                    if (prev >= 100) {
+                        clearInterval(searchInterval);
+                        startMultiplayerBattle();
+                        return 100;
+                    }
+                    return prev + 2;
+                });
+            }, 50);
+        }
     };
-
-    const findOpponent = () => {
+    
+    const findPracticeOpponent = () => {
         const availableOpponents = userCards.filter(c => c.id !== selectedCard?.id);
         if (availableOpponents.length === 0) {
             setError('No opponent cards available');
@@ -113,6 +138,30 @@ export default function BattlePage() {
         setOpponentCard(randomOpponent);
         setPhase('prematch');
         startCountdown();
+    };
+    
+    const startMultiplayerBattle = async () => {
+        try {
+            // First, fetch random opponent from other players
+            const opponentRes = await fetchApi(`/combat/opponent/random?player_id=${playerId}`);
+            
+            setOpponentCard({
+                id: opponentRes.card_id,
+                name: opponentRes.name,
+                rarity: opponentRes.rarity,
+                atk: opponentRes.att,
+                def: opponentRes.def,
+                signature: opponentRes.signature,
+                finisher: opponentRes.finisher,
+            });
+            
+            // Battle will start automatically in BattleArena component
+            setPhase('prematch');
+            startCountdown();
+        } catch (err: any) {
+            setError(err.message || 'Failed to find opponent');
+            setPhase('select');
+        }
     };
 
     const startCountdown = () => {
@@ -198,22 +247,30 @@ export default function BattlePage() {
                                     ⚔️ Battle Arena
                                 </h2>
                                 <p className="mt-1 text-sm uppercase tracking-[0.2em] text-[var(--text-secondary)]">
-                                    Practice with random opponents
+                                    {battleMode === 'practice' ? 'Practice with your cards' : 'Fight other players cards'}
                                 </p>
                             </div>
                             
                             <div className="flex items-center gap-3 rounded-full border border-white/10 bg-black/40 p-1.5">
                                 <button
-                                    disabled
-                                    className="rounded-full bg-[var(--accent-raw)] px-5 py-2 text-xs font-bold uppercase tracking-[0.15em] text-white shadow-[0_0_15px_rgba(226,26,44,0.4)]"
+                                    onClick={() => setBattleMode('practice')}
+                                    className={`rounded-full px-5 py-2 text-xs font-bold uppercase tracking-[0.15em] transition-colors ${
+                                        battleMode === 'practice'
+                                            ? 'bg-[var(--accent-raw)] text-white shadow-[0_0_15px_rgba(226,26,44,0.4)]'
+                                            : 'text-[var(--text-secondary)] hover:text-white'
+                                    }`}
                                 >
                                     🎯 Practice
                                 </button>
                                 <button
-                                    disabled
-                                    className="rounded-full px-5 py-2 text-xs font-bold uppercase tracking-[0.15em] text-[var(--text-secondary)] cursor-not-allowed opacity-50"
+                                    onClick={() => setBattleMode('multiplayer')}
+                                    className={`rounded-full px-5 py-2 text-xs font-bold uppercase tracking-[0.15em] transition-colors ${
+                                        battleMode === 'multiplayer'
+                                            ? 'bg-[var(--accent-gold)] text-black shadow-[0_0_15px_rgba(212,175,55,0.4)]'
+                                            : 'text-[var(--text-secondary)] hover:text-white'
+                                    }`}
                                 >
-                                    🏆 Ranked
+                                    ⚡ Multiplayer
                                 </button>
                             </div>
                         </div>
@@ -312,7 +369,7 @@ export default function BattlePage() {
                             </div>
 
                             <div className="mb-4 text-2xl font-bold uppercase tracking-[0.2em] text-white">
-                                🔍 Searching for opponent...
+                                {battleMode === 'multiplayer' ? '🔍 Finding opponent...' : '🤖 Preparing match...'}
                             </div>
 
                             <div className="mb-6 h-3 overflow-hidden rounded-full bg-black">
@@ -415,6 +472,8 @@ export default function BattlePage() {
                         opponentCard={opponentCard}
                         onBattleComplete={handleBattleComplete}
                         onBack={() => router.push('/lobby')}
+                        opponentPlayerId={null}
+                        isMultiplayer={battleMode === 'multiplayer'}
                     />
                 )}
 
