@@ -76,3 +76,37 @@ async def get_all_players_with_coins(conn: asyncpg.Connection):
 
 async def update_player_coins(conn: asyncpg.Connection, player_id: int, coins: int):
     await conn.execute("UPDATE inventories SET coins = $1 WHERE player_id = $2", coins, player_id)
+import json
+
+async def get_packs(conn: asyncpg.Connection):
+    rows = await conn.fetch("SELECT * FROM packs ORDER BY id")
+    res = []
+    for r in rows:
+        d = dict(r)
+        if isinstance(d.get('cards_config'), str):
+            d['cards_config'] = json.loads(d['cards_config'])
+        res.append(d)
+    return res
+
+async def save_pack(conn: asyncpg.Connection, pack_data, pack_id: int = None):
+    # Ensure store exists
+    store = await conn.fetchrow("SELECT id FROM stores WHERE id = $1", pack_data.store_id)
+    if not store:
+        await conn.execute("INSERT INTO stores (id) VALUES ($1)", pack_data.store_id)
+    
+    config_json = json.dumps(pack_data.cards_config)
+    if pack_id:
+        row = await conn.fetchrow("""
+            UPDATE packs SET type=$1, price=$2, min_coin=$3, max_coin=$4, cards_config=$5::jsonb, is_event=$6, event_name=$7
+            WHERE id=$8 RETURNING *
+        """, pack_data.type, pack_data.price, pack_data.min_coin, pack_data.max_coin, config_json, pack_data.is_event, pack_data.event_name, pack_id)
+    else:
+        row = await conn.fetchrow("""
+            INSERT INTO packs (type, price, store_id, min_coin, max_coin, cards_config, is_event, event_name)
+            VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8) RETURNING *
+        """, pack_data.type, pack_data.price, pack_data.store_id, pack_data.min_coin, pack_data.max_coin, config_json, pack_data.is_event, pack_data.event_name)
+    
+    d = dict(row)
+    if isinstance(d.get('cards_config'), str):
+        d['cards_config'] = json.loads(d['cards_config'])
+    return d

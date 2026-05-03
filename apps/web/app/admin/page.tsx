@@ -44,6 +44,22 @@ export default function AdminDashboard() {
         }
     };
 
+    // Packs Management State
+    const [isPacksModalOpen, setIsPacksModalOpen] = useState(false);
+    const [packsList, setPacksList] = useState<any[]>([]);
+
+    const fetchPacks = async () => {
+        try {
+            const res = await fetch('http://localhost:8000/api/admin/packs');
+            if (res.ok) {
+                const data = await res.json();
+                setPacksList(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch packs:", error);
+        }
+    };
+
     // Card Database State
     const [groupedCards, setGroupedCards] = useState<any[]>([]);
     const [expandedWrestler, setExpandedWrestler] = useState<string | null>(null);
@@ -276,7 +292,7 @@ export default function AdminDashboard() {
                                 + Add Cards
                             </button>
                             <button onClick={() => { setIsUsersModalOpen(true); fetchUsers(); }} className="bg-[var(--bg-tertiary)] chrome-border hover:bg-[var(--accent-smackdown)] p-3 rounded text-left transition-colors text-sm font-bold uppercase tracking-wider">Manage Users</button>
-                            <button className="bg-[var(--bg-tertiary)] chrome-border hover:bg-[var(--accent-smackdown)] p-3 rounded text-left transition-colors text-sm font-bold uppercase tracking-wider">Configure Packs</button>
+                            <button onClick={() => { setIsPacksModalOpen(true); fetchPacks(); }} className="bg-[var(--bg-tertiary)] chrome-border hover:bg-[var(--accent-smackdown)] p-3 rounded text-left transition-colors text-sm font-bold uppercase tracking-wider">Configure Packs</button>
                         </div>
                     </div>
                 </div>
@@ -566,6 +582,103 @@ export default function AdminDashboard() {
                                                 className="bg-[var(--success)] hover:bg-green-600 border border-green-500/50 text-white px-4 py-2 rounded font-bold uppercase tracking-wider text-sm transition-colors"
                                             >
                                                 Save
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Configure Packs Modal */}
+            {isPacksModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-black/80">
+                    <div className="metal-panel chrome-border relative w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col rounded-2xl p-6 shadow-2xl">
+                        <button onClick={() => setIsPacksModalOpen(false)} className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20">
+                            ✕
+                        </button>
+                        
+                        <h2 className="text-2xl font-bold mb-6 font-[var(--font-heading)] uppercase text-white">Configure Packs</h2>
+                        
+                        <div className="overflow-y-auto pr-2 flex-1 space-y-6">
+                            {packsList.length === 0 ? (
+                                <p className="text-[var(--text-secondary)] italic">No packs found.</p>
+                            ) : (
+                                packsList.map((pack) => (
+                                    <div key={pack.id} className="bg-black/40 border border-white/10 rounded-xl p-6">
+                                        <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-4">
+                                            <h3 className="text-xl font-bold text-[var(--accent-gold)] uppercase tracking-wider">{pack.type} Pack</h3>
+                                            <span className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-400 font-bold uppercase">{pack.is_event ? 'Event Pack' : 'Base Pack'}</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-6 mb-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Price (Coins)</label>
+                                                <input type="number" value={pack.price} onChange={(e) => {
+                                                    const newPacks = [...packsList];
+                                                    const index = newPacks.findIndex(p => p.id === pack.id);
+                                                    newPacks[index].price = Number(e.target.value);
+                                                    setPacksList(newPacks);
+                                                }} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Min Coins Yield</label>
+                                                <input type="number" value={pack.min_coin} onChange={(e) => {
+                                                    const newPacks = [...packsList];
+                                                    const index = newPacks.findIndex(p => p.id === pack.id);
+                                                    newPacks[index].min_coin = Number(e.target.value);
+                                                    setPacksList(newPacks);
+                                                }} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Max Coins Yield</label>
+                                                <input type="number" value={pack.max_coin} onChange={(e) => {
+                                                    const newPacks = [...packsList];
+                                                    const index = newPacks.findIndex(p => p.id === pack.id);
+                                                    newPacks[index].max_coin = Number(e.target.value);
+                                                    setPacksList(newPacks);
+                                                }} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" />
+                                            </div>
+                                        </div>
+                                        <div className="mb-4">
+                                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Cards Configuration (JSON)</label>
+                                            <textarea 
+                                                value={typeof pack.cards_config === 'string' ? pack.cards_config : JSON.stringify(pack.cards_config, null, 2)} 
+                                                onChange={(e) => {
+                                                    const newPacks = [...packsList];
+                                                    const index = newPacks.findIndex(p => p.id === pack.id);
+                                                    newPacks[index].cards_config = e.target.value;
+                                                    setPacksList(newPacks);
+                                                }}
+                                                className="w-full bg-black/60 border border-white/20 rounded p-3 text-white font-mono text-xs h-32 custom-scrollbar focus:border-[var(--accent-smackdown)] outline-none" 
+                                            />
+                                        </div>
+                                        <div className="flex justify-end">
+                                            <button 
+                                                onClick={async () => {
+                                                    try {
+                                                        const payload = { ...pack };
+                                                        if (typeof payload.cards_config === 'string') {
+                                                            payload.cards_config = JSON.parse(payload.cards_config);
+                                                        }
+                                                        const res = await fetch(`http://localhost:8000/api/admin/packs/${pack.id}`, {
+                                                            method: 'PUT',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify(payload)
+                                                        });
+                                                        if (res.ok) {
+                                                            alert(`Successfully updated ${pack.type} Pack`);
+                                                        } else {
+                                                            alert("Failed to update pack");
+                                                        }
+                                                    } catch (err) {
+                                                        alert("Invalid JSON format. Please ensure the Cards Configuration is valid JSON.");
+                                                    }
+                                                }}
+                                                className="bg-[var(--accent-smackdown)] hover:bg-blue-600 text-white px-6 py-2 rounded font-bold uppercase tracking-wider text-sm transition-colors"
+                                            >
+                                                Save Pack Configuration
                                             </button>
                                         </div>
                                     </div>

@@ -124,11 +124,17 @@ async def create_tables():
             id SERIAL PRIMARY KEY,
             type VARCHAR(50) NOT NULL,
             price INTEGER NOT NULL,
-            store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE
+            store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
+            min_coin INTEGER DEFAULT 0,
+            max_coin INTEGER DEFAULT 0,
+            cards_config JSONB,
+            is_event BOOLEAN DEFAULT FALSE,
+            event_name VARCHAR(255)
         );
 
         CREATE TABLE events (
             id SERIAL PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
             start_time TIMESTAMP WITH TIME ZONE NOT NULL,
             end_time TIMESTAMP WITH TIME ZONE NOT NULL,
             entry_trophy INTEGER DEFAULT 0

@@ -105,3 +105,18 @@ class PackOpenResponse(BaseModel):
 
 class UpdateCoinsRequest(BaseModel):
     coins: int
+
+class PackCreate(BaseModel):
+    type: str
+    price: int
+    store_id: int = 1
+    min_coin: int
+    max_coin: int
+    cards_config: List[dict]
+    is_event: bool = False
+    event_name: Optional[str] = None
+
+class PackResponse(PackCreate):
+    id: int
+    class Config:
+        from_attributes = True

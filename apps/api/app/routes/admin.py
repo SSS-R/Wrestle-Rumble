@@ -77,3 +77,30 @@ async def update_user_coins(user_id: int, req: UpdateCoinsRequest, conn: asyncpg
         return {"success": True}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+from ..schemas import PackCreate, PackResponse
+
+@router.get("/packs", response_model=List[PackResponse])
+async def get_packs(conn: asyncpg.Connection = Depends(get_db)):
+    try:
+        packs = await crud.get_packs(conn)
+        return packs
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/packs", response_model=PackResponse)
+async def create_pack(pack: PackCreate, conn: asyncpg.Connection = Depends(get_db)):
+    try:
+        saved = await crud.save_pack(conn, pack)
+        return saved
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put("/packs/{pack_id}", response_model=PackResponse)
+async def update_pack(pack_id: int, pack: PackCreate, conn: asyncpg.Connection = Depends(get_db)):
+    try:
+        saved = await crud.save_pack(conn, pack, pack_id)
+        return saved
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+

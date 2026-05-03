@@ -1,31 +1,24 @@
 import asyncpg
 import random
+import json
 
-def get_pack_contents(pack_type: str) -> tuple[int, dict, int]:
-    packs = {
-        'basic': {'count': 3, 'weights': {'Legendary': 0.01, 'Epic': 0.05, 'Rare': 0.2}, 'price': 100},
-        'silver': {'count': 5, 'weights': {'Legendary': 0.02, 'Epic': 0.1, 'Rare': 0.4}, 'price': 250},
-        'gold': {'count': 5, 'weights': {'Legendary': 0.05, 'Epic': 0.3, 'Rare': 0.5}, 'price': 500},
-        'legends': {'count': 5, 'weights': {'Legendary': 0.2, 'Epic': 0.4, 'Rare': 0.4}, 'price': 1000},
-    }
-    pack = packs.get(pack_type, packs['basic'])
-    return pack['count'], pack['weights'], pack['price']
+def get_weighted_rarity(weights: dict) -> str:
+    total = sum(weights.values())
+    roll = random.uniform(0, total)
+    current = 0
+    for rarity, weight in weights.items():
+        current += weight
+        if roll <= current:
+            return rarity
+    return "Common"
 
-def get_pack_cards_rarity(weights: dict) -> list[str]:
-    rarities = []
-    roll = random.random()
-    if roll < weights.get('Legendary', 0):
-        rarities.append('Legendary')
-    elif roll < weights.get('Legendary', 0) + weights.get('Epic', 0):
-        rarities.append('Epic')
-    elif roll < weights.get('Legendary', 0) + weights.get('Epic', 0) + weights.get('Rare', 0):
-        rarities.append('Rare')
-    else:
-        rarities.append('Common')
-    return rarities
-
-async def open_pack(conn: asyncpg.Connection, player_id: int, pack_type: str = 'basic') -> list[dict]:
-    count, weights, price = get_pack_contents(pack_type)
+async def open_pack(conn: asyncpg.Connection, player_id: int, pack_type: str = 'Basic') -> dict:
+    row = await conn.fetchrow("SELECT * FROM packs WHERE type = $1", pack_type)
+    if not row:
+        raise Exception(f"Pack {pack_type} not found")
+        
+    pack = dict(row)
+    price = pack['price']
     
     inventory = await conn.fetchrow("SELECT id, coins FROM inventories WHERE player_id = $1", player_id)
     if not inventory:
@@ -34,17 +27,31 @@ async def open_pack(conn: asyncpg.Connection, player_id: int, pack_type: str = '
     if inventory['coins'] < price:
         raise Exception(f"Not enough coins. Need {price}")
         
-    await conn.execute("UPDATE inventories SET coins = coins - $1 WHERE id = $2", price, inventory['id'])
+    coins_gained = random.randint(pack['min_coin'], pack['max_coin'])
+    
+    await conn.execute("UPDATE inventories SET coins = coins - $1 + $2 WHERE id = $3", price, coins_gained, inventory['id'])
+    
+    cards_config = json.loads(pack['cards_config']) if isinstance(pack['cards_config'], str) else pack['cards_config']
     
     rarities = []
-    for _ in range(count):
-        rarities.extend(get_pack_cards_rarity(weights))
-        
+    for conf in cards_config:
+        count = conf.get('count', 0)
+        if conf['type'] == 'guaranteed':
+            rarities.extend([conf['rarity']] * count)
+        elif conf['type'] == 'random':
+            for _ in range(count):
+                rarities.append(get_weighted_rarity(conf['weights']))
+                
     new_cards = []
     for rarity in rarities:
-        cards = await conn.fetch("SELECT id FROM cards WHERE rarity = $1", rarity)
-        if not cards:
-            cards = await conn.fetch("SELECT id FROM cards WHERE rarity = 'Common'")
+        if pack['is_event'] and pack['event_name']:
+            cards = await conn.fetch("SELECT id FROM cards WHERE rarity = $1 AND type = $2", rarity, pack['event_name'])
+            if not cards:
+                cards = await conn.fetch("SELECT id FROM cards WHERE type = $1", pack['event_name'])
+        else:
+            cards = await conn.fetch("SELECT id FROM cards WHERE rarity = $1 AND type = 'Base'", rarity)
+            if not cards:
+                cards = await conn.fetch("SELECT id FROM cards WHERE rarity = 'Common' AND type = 'Base'")
             
         if not cards:
             continue
@@ -89,4 +96,4 @@ async def open_pack(conn: asyncpg.Connection, player_id: int, pack_type: str = '
         }
         new_cards.append(d)
         
-    return new_cards
+    return {"cards": new_cards, "coins_gained": coins_gained}
