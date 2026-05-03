@@ -8,12 +8,12 @@ from ..services.packs import open_pack
 router = APIRouter(prefix="/api/packs", tags=["packs"])
 
 @router.post("/open", response_model=PackOpenResponse)
-async def open_pack_route(player_id: int, pack_type: str = 'basic', conn: asyncpg.Connection = Depends(get_db)):
+async def open_pack_route(player_id: int, pack_type: str = 'Basic', conn: asyncpg.Connection = Depends(get_db)):
     try:
-        cards = await open_pack(conn, player_id, pack_type)
+        res = await open_pack(conn, player_id, pack_type)
         return PackOpenResponse(
-            cards=[InventoryCardResponse.model_validate(c) for c in cards],
-            coins_gained=0
+            cards=[InventoryCardResponse.model_validate(c) for c in res['cards']],
+            coins_gained=res['coins_gained']
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

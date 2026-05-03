@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 import asyncpg
 from typing import List
 from ..database import get_db
-from ..schemas import BaseCardCreate, CardCreate, CardResponse
+from ..schemas import BaseCardCreate, CardCreate, CardResponse, UpdateCoinsRequest
 from .. import crud, file_handler
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -61,3 +61,63 @@ async def delete_all_cards(conn: asyncpg.Connection = Depends(get_db)):
         return {"success": True}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/users")
+async def get_all_users(conn: asyncpg.Connection = Depends(get_db)):
+    try:
+        users = await crud.get_all_players_with_coins(conn)
+        return users
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put("/users/{user_id}/coins")
+async def update_user_coins(user_id: int, req: UpdateCoinsRequest, conn: asyncpg.Connection = Depends(get_db)):
+    try:
+        await crud.update_player_coins(conn, user_id, req.coins)
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+from ..schemas import PackCreate, PackResponse
+
+@router.get("/packs", response_model=List[PackResponse])
+async def get_packs(conn: asyncpg.Connection = Depends(get_db)):
+    try:
+        packs = await crud.get_packs(conn)
+        return packs
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/packs", response_model=PackResponse)
+async def create_pack(pack: PackCreate, conn: asyncpg.Connection = Depends(get_db)):
+    try:
+        saved = await crud.save_pack(conn, pack)
+        return saved
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put("/packs/{pack_id}", response_model=PackResponse)
+async def update_pack(pack_id: int, pack: PackCreate, conn: asyncpg.Connection = Depends(get_db)):
+    try:
+        saved = await crud.save_pack(conn, pack, pack_id)
+        return saved
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+from ..schemas import EventCreate, EventResponse
+
+@router.post("/events", response_model=EventResponse)
+async def create_event_route(event: EventCreate, conn: asyncpg.Connection = Depends(get_db)):
+    try:
+        saved = await crud.create_event(conn, event)
+        return saved
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/events", response_model=List[EventResponse])
+async def get_events(conn: asyncpg.Connection = Depends(get_db)):
+    try:
+        return await crud.get_events(conn)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
