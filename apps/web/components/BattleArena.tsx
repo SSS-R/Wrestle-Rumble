@@ -37,9 +37,11 @@ type BattleArenaProps = {
     opponentCard: Card;
     onBattleComplete: (result: BattleResult) => void;
     onBack: () => void;
+    opponentPlayerId?: number | null;
+    isMultiplayer?: boolean;
 };
 
-export function BattleArena({ userCard, opponentCard, onBattleComplete, onBack }: BattleArenaProps) {
+export function BattleArena({ userCard, opponentCard, onBattleComplete, onBack, opponentPlayerId, isMultiplayer = false }: BattleArenaProps) {
     const [battleState, setBattleState] = useState<'ready' | 'fighting' | 'complete'>('ready');
     const [currentTime, setCurrentTime] = useState(0);
     const [events, setEvents] = useState<BattleEvent[]>([]);
@@ -103,40 +105,48 @@ export function BattleArena({ userCard, opponentCard, onBattleComplete, onBack }
         const stored = localStorage.getItem('wr_user');
         const playerId = stored ? JSON.parse(stored).user?.id || JSON.parse(stored).player?.id : 1;
 
-        try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/combat/battle`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    player_id: playerId,
-                    user_card_id: userCard.id,
-                    opponent_id: null,
-                    opponent_card_id: null,
-                }),
-            });
+        // Generate battle locally for both modes (same animation/duration)
+        const events = generateMockEvents(userCard, opponentCard, 15);
+        const userBase = userCard.atk * 0.7 + userCard.def * 0.3;
+        const oppBase = opponentCard.atk * 0.7 + opponentCard.def * 0.3;
+        const userFinal = Math.floor(userBase * (0.85 + Math.random() * 0.3));
+        const oppFinal = Math.floor(oppBase * (0.85 + Math.random() * 0.3));
+        const userWon = userFinal > oppFinal;
+        
+        setEvents(events);
+        const battleResult = {
+            match_id: Date.now(),
+            user_won: userWon,
+            user_score: userFinal,
+            opponent_score: oppFinal,
+            trophies_gained: 0,
+            coins_gained: 0,
+            duration: 15,
+            events,
+        };
+        setResult(battleResult);
+        playBattleAnimation(events);
 
-            if (!response.ok) throw new Error('Battle failed');
-
-            const data: BattleResult = await response.json();
-            setEvents(data.events);
-            setResult(data);
-            playBattleAnimation(data.events);
-        } catch (error) {
-            console.error('Battle error:', error);
-            const mockEvents = generateMockEvents(userCard, opponentCard, 15);
-            const userWon = Math.random() > 0.5;
-            setEvents(mockEvents);
-            setResult({
-                match_id: Date.now(),
-                user_won: userWon,
-                user_score: Math.floor(Math.random() * 50) + 80,
-                opponent_score: Math.floor(Math.random() * 50) + 60,
-                trophies_gained: userWon ? 15 : 0,
-                coins_gained: userWon ? 100 : 25,
-                duration: 15,
-                events: mockEvents,
-            });
-            playBattleAnimation(mockEvents);
+        // After animation, send result to backend for rewards (multiplayer only)
+        if (isMultiplayer) {
+            setTimeout(async () => {
+                try {
+                    await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/combat/battle/result`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            player_id: playerId,
+                            user_card_id: userCard.id,
+                            opponent_card_id: opponentCard.id,
+                            user_won: userWon,
+                            user_score: userFinal,
+                            opponent_score: oppFinal,
+                        }),
+                    });
+                } catch (error) {
+                    console.error('Result save error:', error);
+                }
+            }, 15500);
         }
     };
 

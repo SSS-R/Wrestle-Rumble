@@ -85,17 +85,6 @@ def generate_battle_events(user_card: dict, opponent_card: dict, duration: int =
             "effect": effect
         })
     
-    user_won = user_score > opponent_score
-    
-    events.append({
-        "timestamp": float(duration),
-        "event_type": "conclusion",
-        "actor": "referee",
-        "description": f"{user_name if user_won else opp_name} WINS!",
-        "damage": None,
-        "effect": None
-    })
-    
     return events
 
 def calculate_battle_score(user_card: dict, opponent_card: dict, events: list = None) -> tuple[int, int]:
