@@ -102,3 +102,6 @@ class LeaderboardEntry(BaseModel):
 class PackOpenResponse(BaseModel):
     cards: List[InventoryCardResponse]
     coins_gained: int = 0
+
+class UpdateCoinsRequest(BaseModel):
+    coins: int

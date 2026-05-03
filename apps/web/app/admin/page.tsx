@@ -28,6 +28,22 @@ export default function AdminDashboard() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
 
+    // Users Management State
+    const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
+    const [usersList, setUsersList] = useState<any[]>([]);
+
+    const fetchUsers = async () => {
+        try {
+            const res = await fetch('http://localhost:8000/api/admin/users');
+            if (res.ok) {
+                const data = await res.json();
+                setUsersList(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch users:", error);
+        }
+    };
+
     // Card Database State
     const [groupedCards, setGroupedCards] = useState<any[]>([]);
     const [expandedWrestler, setExpandedWrestler] = useState<string | null>(null);
@@ -259,7 +275,7 @@ export default function AdminDashboard() {
                             }} className="bg-[var(--accent-gold)] text-black hover:bg-yellow-500 p-3 rounded text-left transition-colors text-sm font-bold uppercase tracking-wider shadow-[0_0_15px_rgba(212,175,55,0.4)]">
                                 + Add Cards
                             </button>
-                            <button className="bg-[var(--bg-tertiary)] chrome-border hover:bg-[var(--accent-smackdown)] p-3 rounded text-left transition-colors text-sm font-bold uppercase tracking-wider">Manage Users</button>
+                            <button onClick={() => { setIsUsersModalOpen(true); fetchUsers(); }} className="bg-[var(--bg-tertiary)] chrome-border hover:bg-[var(--accent-smackdown)] p-3 rounded text-left transition-colors text-sm font-bold uppercase tracking-wider">Manage Users</button>
                             <button className="bg-[var(--bg-tertiary)] chrome-border hover:bg-[var(--accent-smackdown)] p-3 rounded text-left transition-colors text-sm font-bold uppercase tracking-wider">Configure Packs</button>
                         </div>
                     </div>
@@ -491,6 +507,71 @@ export default function AdminDashboard() {
                                 {isSubmitting ? 'Processing...' : cardMode === 'base' ? 'Submit All 4 Variants' : 'Mint Event Card'}
                             </button>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Manage Users Modal */}
+            {isUsersModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-black/80">
+                    <div className="metal-panel chrome-border relative w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col rounded-2xl p-6 shadow-2xl">
+                        <button onClick={() => setIsUsersModalOpen(false)} className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20">
+                            ✕
+                        </button>
+                        
+                        <h2 className="text-2xl font-bold mb-6 font-[var(--font-heading)] uppercase text-white">Manage Players</h2>
+                        
+                        <div className="overflow-y-auto pr-2 flex-1 space-y-4">
+                            {usersList.length === 0 ? (
+                                <p className="text-[var(--text-secondary)] italic">No players found.</p>
+                            ) : (
+                                usersList.map((player) => (
+                                    <div key={player.id} className="bg-black/40 border border-white/10 rounded-xl p-4 flex items-center justify-between">
+                                        <div>
+                                            <p className="font-bold text-lg text-white">{player.name}</p>
+                                            <p className="text-xs text-gray-400">{player.email}</p>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <div className="text-right flex items-center gap-2">
+                                                <p className="text-xs text-gray-400 uppercase tracking-wider font-bold">Coins:</p>
+                                                <input 
+                                                    type="number" 
+                                                    className="bg-black/60 border border-[var(--accent-gold)] rounded px-2 py-1 text-white w-24 text-right font-bold"
+                                                    value={player.coins}
+                                                    onChange={(e) => {
+                                                        const newUsers = [...usersList];
+                                                        const index = newUsers.findIndex(u => u.id === player.id);
+                                                        newUsers[index].coins = Number(e.target.value);
+                                                        setUsersList(newUsers);
+                                                    }}
+                                                />
+                                            </div>
+                                            <button 
+                                                onClick={async () => {
+                                                    try {
+                                                        const res = await fetch(`http://localhost:8000/api/admin/users/${player.id}/coins`, {
+                                                            method: 'PUT',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ coins: player.coins })
+                                                        });
+                                                        if (res.ok) {
+                                                            alert(`Updated coins for ${player.name} to ${player.coins}`);
+                                                        } else {
+                                                            alert("Failed to update coins");
+                                                        }
+                                                    } catch (err) {
+                                                        alert("Network error");
+                                                    }
+                                                }}
+                                                className="bg-[var(--success)] hover:bg-green-600 border border-green-500/50 text-white px-4 py-2 rounded font-bold uppercase tracking-wider text-sm transition-colors"
+                                            >
+                                                Save
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

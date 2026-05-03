@@ -63,3 +63,16 @@ async def delete_wrestler_cards(conn: asyncpg.Connection, wrestler_name: str):
 
 async def delete_all_cards(conn: asyncpg.Connection):
     await conn.execute("DELETE FROM cards")
+
+async def get_all_players_with_coins(conn: asyncpg.Connection):
+    rows = await conn.fetch("""
+        SELECT u.id, u.name, u.email, p.age, p.trophy, COALESCE(i.coins, 0) as coins 
+        FROM users u
+        JOIN players p ON u.id = p.id
+        LEFT JOIN inventories i ON p.id = i.player_id
+        ORDER BY u.id
+    """)
+    return [dict(r) for r in rows]
+
+async def update_player_coins(conn: asyncpg.Connection, player_id: int, coins: int):
+    await conn.execute("UPDATE inventories SET coins = $1 WHERE player_id = $2", coins, player_id)

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 import asyncpg
 from typing import List
 from ..database import get_db
-from ..schemas import BaseCardCreate, CardCreate, CardResponse
+from ..schemas import BaseCardCreate, CardCreate, CardResponse, UpdateCoinsRequest
 from .. import crud, file_handler
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -58,6 +58,22 @@ async def delete_wrestler_cards(wrestler_name: str, conn: asyncpg.Connection = D
 async def delete_all_cards(conn: asyncpg.Connection = Depends(get_db)):
     try:
         await crud.delete_all_cards(conn)
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/users")
+async def get_all_users(conn: asyncpg.Connection = Depends(get_db)):
+    try:
+        users = await crud.get_all_players_with_coins(conn)
+        return users
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put("/users/{user_id}/coins")
+async def update_user_coins(user_id: int, req: UpdateCoinsRequest, conn: asyncpg.Connection = Depends(get_db)):
+    try:
+        await crud.update_player_coins(conn, user_id, req.coins)
         return {"success": True}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
