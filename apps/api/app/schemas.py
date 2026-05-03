@@ -121,7 +121,7 @@ class PackOpenResponse(BaseModel):
     cards: List[InventoryCardResponse]
     coins_gained: int = 0
 
-<<<<<<< ours
+
 
 class QueueStatus(BaseModel):
     queued: bool
@@ -136,7 +136,7 @@ class MatchmakingResult(BaseModel):
     player2_id: int
     player1_card: dict
     player2_card: dict
-=======
+
 class UpdateCoinsRequest(BaseModel):
     coins: int
 
@@ -167,4 +167,4 @@ class EventResponse(BaseModel):
     entry_trophy: int
     start_time: datetime
     end_time: datetime
->>>>>>> theirs
+
