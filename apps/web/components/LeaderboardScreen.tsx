@@ -1,24 +1,49 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TopNavigation } from './TopNavigation';
-import { MOCK_USER } from '../lib/mockData';
+import { fetchApi } from '../lib/api';
 
-const leaderboardData = [
-    { rank: 1, username: 'BeltCollector', trophies: 542, wins: 87, losses: 23 },
-    { rank: 2, username: 'RafiTheChampion', trophies: 318, wins: 64, losses: 31 },
-    { rank: 3, username: 'RumbleQueen', trophies: 301, wins: 59, losses: 28 },
-    { rank: 4, username: 'TribalChief01', trophies: 287, wins: 55, losses: 30 },
-    { rank: 5, username: 'StylesPhenom', trophies: 265, wins: 52, losses: 33 },
-    { rank: 6, username: 'RheaRises', trophies: 243, wins: 48, losses: 35 },
-    { rank: 7, username: 'CodyNightmare', trophies: 221, wins: 45, losses: 37 },
-    { rank: 8, username: 'GuntherGeneral', trophies: 198, wins: 41, losses: 38 },
-    { rank: 9, username: 'SamiUnderdog', trophies: 176, wins: 38, losses: 40 },
-    { rank: 10, username: 'ReyFlyer', trophies: 154, wins: 34, losses: 42 },
-];
+type LeaderboardEntry = {
+    rank: number;
+    player_id: number;
+    name: string;
+    trophy: number;
+    wins: number;
+    losses: number;
+};
 
 export function LeaderboardScreen() {
-    const [timeframe, setTimeframe] = useState<'all' | 'weekly' | 'daily'>('all');
+    const [filter, setFilter] = useState<'global' | 'friends'>('global');
+    const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [playerId, setPlayerId] = useState<number | null>(null);
+
+    useEffect(() => {
+        const stored = localStorage.getItem('wr_user');
+        if (stored) {
+            const data = JSON.parse(stored);
+            const id = data.user?.id || data.player?.id;
+            if (id) setPlayerId(id);
+        }
+        loadLeaderboard();
+    }, []);
+
+    const loadLeaderboard = async () => {
+        setLoading(true);
+        try {
+            const data = await fetchApi(`/combat/leaderboard?limit=10&filter=${filter}`);
+            setLeaderboardData(data);
+        } catch (err) {
+            console.error('Failed to load leaderboard:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadLeaderboard();
+    }, [filter]);
 
     const getRankStyle = (rank: number) => {
         if (rank === 1) return 'bg-gradient-to-r from-[var(--accent-gold)] to-amber-600 text-white';
@@ -42,17 +67,17 @@ export function LeaderboardScreen() {
                 </div>
 
                 <div className="mb-6 flex justify-center gap-3">
-                    {(['all', 'weekly', 'daily'] as const).map((tf) => (
+                    {(['global', 'friends'] as const).map((f) => (
                         <button
-                            key={tf}
-                            onClick={() => setTimeframe(tf)}
+                            key={f}
+                            onClick={() => setFilter(f)}
                             className={`rounded-full px-6 py-2 text-xs font-bold uppercase tracking-[0.15em] transition ${
-                                timeframe === tf
+                                filter === f
                                     ? 'bg-[var(--accent-raw)] text-white'
                                     : 'bg-white/5 text-[var(--text-secondary)] hover:bg-white/10'
                             }`}
                         >
-                            {tf === 'all' ? 'All Time' : tf}
+                            {f === 'global' ? '🌍 Global' : '👥 Friends Only'}
                         </button>
                     ))}
                 </div>
@@ -67,64 +92,82 @@ export function LeaderboardScreen() {
                             <div className="col-span-2 text-center">L</div>
                         </div>
 
-                        {leaderboardData.map((entry, index) => (
-                            <div
-                                key={entry.username}
-                                className={`grid grid-cols-12 gap-4 border-b border-white/5 px-6 py-4 transition hover:bg-white/5 ${
-                                    entry.username === MOCK_USER.username ? 'bg-[var(--accent-gold)]/10' : ''
-                                }`}
-                                style={{ animationDelay: `${index * 50}ms` }}
-                            >
-                                <div className="col-span-2 flex items-center justify-center">
-                                    <div className={`flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold ${getRankStyle(entry.rank)}`}>
-                                        {entry.rank}
-                                    </div>
-                                </div>
-                                <div className="col-span-4 flex items-center">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`h-10 w-10 rounded-full bg-gradient-to-br ${
-                                            entry.rank <= 3 
-                                                ? 'from-[var(--accent-gold)] to-amber-700' 
-                                                : 'from-zinc-600 to-zinc-800'
-                                        }`} />
-                                        <div>
-                                            <p className="font-bold text-white">{entry.username}</p>
-                                            {entry.username === MOCK_USER.username && (
-                                                <p className="text-[10px] uppercase text-[var(--accent-gold)]">You</p>
-                                            )}
+                        {loading ? (
+                            <div className="py-12 text-center text-[var(--text-secondary)]">Loading leaderboard...</div>
+                        ) : (
+                            leaderboardData.map((entry, index) => (
+                                <div
+                                    key={entry.player_id}
+                                    className={`grid grid-cols-12 gap-4 border-b border-white/5 px-6 py-4 transition hover:bg-white/5 ${
+                                        entry.player_id === playerId ? 'bg-[var(--accent-gold)]/10' : ''
+                                    }`}
+                                    style={{ animationDelay: `${index * 50}ms` }}
+                                >
+                                    <div className="col-span-2 flex items-center justify-center">
+                                        <div className={`flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold ${getRankStyle(entry.rank)}`}>
+                                            {entry.rank}
                                         </div>
                                     </div>
+                                    <div className="col-span-4 flex items-center">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`h-10 w-10 rounded-full bg-gradient-to-br ${
+                                                entry.rank <= 3 
+                                                    ? 'from-[var(--accent-gold)] to-amber-700' 
+                                                    : 'from-zinc-600 to-zinc-800'
+                                            }`} />
+                                            <div>
+                                                <p className="font-bold text-white">{entry.name}</p>
+                                                {entry.player_id === playerId && (
+                                                    <p className="text-[10px] uppercase text-[var(--accent-gold)]">You</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="col-span-2 flex items-center justify-center">
+                                        <span className="text-lg font-bold text-[var(--accent-gold)]">{entry.trophy}</span>
+                                    </div>
+                                    <div className="col-span-2 flex items-center justify-center">
+                                        <span className="rounded bg-[var(--success)]/20 px-3 py-1 text-sm font-bold text-[var(--success)]">
+                                            {entry.wins}
+                                        </span>
+                                    </div>
+                                    <div className="col-span-2 flex items-center justify-center">
+                                        <span className="rounded bg-[var(--accent-raw)]/20 px-3 py-1 text-sm font-bold text-[var(--accent-raw)]">
+                                            {entry.losses}
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className="col-span-2 flex items-center justify-center">
-                                    <span className="text-lg font-bold text-[var(--accent-gold)]">{entry.trophies}</span>
-                                </div>
-                                <div className="col-span-2 flex items-center justify-center">
-                                    <span className="rounded bg-[var(--success)]/20 px-3 py-1 text-sm font-bold text-[var(--success)]">
-                                        {entry.wins}
-                                    </span>
-                                </div>
-                                <div className="col-span-2 flex items-center justify-center">
-                                    <span className="rounded bg-[var(--accent-raw)]/20 px-3 py-1 text-sm font-bold text-[var(--accent-raw)]">
-                                        {entry.losses}
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
+                            ))
+                        )}
                     </div>
 
                     <div className="mt-6 grid gap-4 md:grid-cols-3">
-                        <div className="metal-panel chrome-border rounded-2xl p-6 text-center">
-                            <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-secondary)]">Your Rank</p>
-                            <p className="mt-2 text-4xl font-bold text-[var(--accent-gold)]">#2</p>
-                        </div>
-                        <div className="metal-panel chrome-border rounded-2xl p-6 text-center">
-                            <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-secondary)]">Total Battles</p>
-                            <p className="mt-2 text-4xl font-bold text-white">95</p>
-                        </div>
-                        <div className="metal-panel chrome-border rounded-2xl p-6 text-center">
-                            <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-secondary)]">Win Rate</p>
-                            <p className="mt-2 text-4xl font-bold text-[var(--success)]">67%</p>
-                        </div>
+                        {playerId && (
+                            <>
+                                <div className="metal-panel chrome-border rounded-2xl p-6 text-center">
+                                    <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-secondary)]">Your Rank</p>
+                                    <p className="mt-2 text-4xl font-bold text-[var(--accent-gold)]">
+                                        #{leaderboardData.find(e => e.player_id === playerId)?.rank || '—'}
+                                    </p>
+                                </div>
+                                <div className="metal-panel chrome-border rounded-2xl p-6 text-center">
+                                    <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-secondary)]">Total Battles</p>
+                                    <p className="mt-2 text-4xl font-bold text-white">
+                                        {(leaderboardData.find(e => e.player_id === playerId)?.wins || 0) + (leaderboardData.find(e => e.player_id === playerId)?.losses || 0)}
+                                    </p>
+                                </div>
+                                <div className="metal-panel chrome-border rounded-2xl p-6 text-center">
+                                    <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-secondary)]">Win Rate</p>
+                                    <p className="mt-2 text-4xl font-bold text-[var(--success)]">
+                                        {(() => {
+                                            const entry = leaderboardData.find(e => e.player_id === playerId);
+                                            if (!entry || (entry.wins + entry.losses) === 0) return '—';
+                                            return Math.round((entry.wins / (entry.wins + entry.losses)) * 100) + '%';
+                                        })()}
+                                    </p>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>

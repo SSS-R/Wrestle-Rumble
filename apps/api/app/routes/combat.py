@@ -109,6 +109,39 @@ async def start_battle(battle_data: BattleCreate, conn: asyncpg.Connection = Dep
     )
 
 
+@router.get("/opponent/card")
+async def get_opponent_card(player_id: int, conn: asyncpg.Connection = Depends(get_db)):
+    """Get a player's active card for battle"""
+    inventory = await conn.fetchrow("SELECT id FROM inventories WHERE player_id = $1", player_id)
+    if not inventory:
+        raise HTTPException(status_code=404, detail="Player inventory not found")
+    
+    card = await conn.fetchrow(
+        """
+        SELECT ic.card_id, c.name, c.att, c.def, c.rarity, c.signature, c.finisher, c.image
+        FROM inventory_cards ic
+        JOIN cards c ON ic.card_id = c.id
+        WHERE ic.inventory_id = $1 AND ic.is_active = TRUE
+        LIMIT 1
+        """,
+        inventory['id']
+    )
+    
+    if not card:
+        raise HTTPException(status_code=404, detail="No active card found")
+    
+    return {
+        "card_id": card['card_id'],
+        "name": card['name'],
+        "att": card['att'],
+        "def": card['def'],
+        "rarity": card['rarity'],
+        "signature": card['signature'],
+        "finisher": card['finisher'],
+        "image": card['image'],
+    }
+
+
 @router.get("/opponent/random")
 async def get_random_opponent(player_id: int, conn: asyncpg.Connection = Depends(get_db)):
     """Get a random opponent card from other players' inventories"""
@@ -180,10 +213,54 @@ async def record_battle_result(data: BattleResultInput, conn: asyncpg.Connection
     }
 
 @router.get("/leaderboard", response_model=List[LeaderboardEntry])
-async def get_leaderboard(limit: int = 10, conn: asyncpg.Connection = Depends(get_db)):
-    players = await conn.fetch("SELECT p.id, u.name, p.trophy FROM players p JOIN users u ON p.id = u.id ORDER BY p.trophy DESC LIMIT $1", limit)
+async def get_leaderboard(limit: int = 10, filter: str = 'global', conn: asyncpg.Connection = Depends(get_db)):
+    """Get top players by trophies with win/loss stats"""
+    if filter == 'friends':
+        # Get friends leaderboard (players connected via socials table)
+        players = await conn.fetch("""
+            SELECT 
+                p.id,
+                u.name,
+                p.trophy,
+                COUNT(DISTINCT CASE WHEN pm.player_id = p.id THEN m.id END) as total_matches,
+                COUNT(DISTINCT CASE WHEN pm.player_id = p.id AND m.winner_id = p.id THEN m.id END) as total_wins
+            FROM players p
+            JOIN users u ON p.id = u.id
+            JOIN socials s ON s.player_id = p.id
+            LEFT JOIN player_matches pm ON pm.player_id = p.id
+            LEFT JOIN matches m ON m.id = pm.match_id
+            WHERE s.friends > 0
+            GROUP BY p.id, u.name, p.trophy
+            ORDER BY p.trophy DESC
+            LIMIT $1
+        """, limit)
+    else:
+        # Global leaderboard
+        players = await conn.fetch("""
+            SELECT 
+                p.id,
+                u.name,
+                p.trophy,
+                COUNT(DISTINCT CASE WHEN pm.player_id = p.id THEN m.id END) as total_matches,
+                COUNT(DISTINCT CASE WHEN pm.player_id = p.id AND m.winner_id = p.id THEN m.id END) as total_wins
+            FROM players p
+            JOIN users u ON p.id = u.id
+            LEFT JOIN player_matches pm ON pm.player_id = p.id
+            LEFT JOIN matches m ON m.id = pm.match_id
+            GROUP BY p.id, u.name, p.trophy
+            ORDER BY p.trophy DESC
+            LIMIT $1
+        """, limit)
+    
     return [
-        LeaderboardEntry(rank=i + 1, player_id=p['id'], name=p['name'], trophy=p['trophy'])
+        LeaderboardEntry(
+            rank=i + 1,
+            player_id=p['id'],
+            name=p['name'],
+            trophy=p['trophy'],
+            wins=p['total_wins'] or 0,
+            losses=(p['total_matches'] or 0) - (p['total_wins'] or 0)
+        )
         for i, p in enumerate(players)
     ]
 

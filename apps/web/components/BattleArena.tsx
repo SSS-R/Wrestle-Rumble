@@ -53,7 +53,22 @@ export function BattleArena({ userCard, opponentCard, onBattleComplete, onBack, 
     const [activeEvent, setActiveEvent] = useState<BattleEvent | null>(null);
     const [pyroBurst, setPyroBurst] = useState(false);
     const [screenShake, setScreenShake] = useState(false);
+    const [battleDuration, setBattleDuration] = useState(15);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+    const calculateDuration = (userCard: Card, opponentCard: Card): number => {
+        const atkDiff = Math.abs(userCard.atk - opponentCard.atk);
+        const defDiff = Math.abs(userCard.def - opponentCard.def);
+        const totalDiff = atkDiff + defDiff;
+        
+        // Same/similar attributes (< 10 total diff) = longer battle (20-30 seconds)
+        if (totalDiff < 10) {
+            return Math.floor(Math.random() * 10) + 20;
+        }
+        
+        // Normal battle (15-25 seconds)
+        return Math.floor(Math.random() * 10) + 15;
+    };
 
     const generateMockEvents = (userCard: Card, opponentCard: Card, duration: number): BattleEvent[] => {
         const events: BattleEvent[] = [];
@@ -105,8 +120,12 @@ export function BattleArena({ userCard, opponentCard, onBattleComplete, onBack, 
         const stored = localStorage.getItem('wr_user');
         const playerId = stored ? JSON.parse(stored).user?.id || JSON.parse(stored).player?.id : 1;
 
+        // Calculate dynamic duration based on card attributes
+        const duration = calculateDuration(userCard, opponentCard);
+        setBattleDuration(duration);
+
         // Generate battle locally for both modes (same animation/duration)
-        const events = generateMockEvents(userCard, opponentCard, 15);
+        const events = generateMockEvents(userCard, opponentCard, duration);
         const userBase = userCard.atk * 0.7 + userCard.def * 0.3;
         const oppBase = opponentCard.atk * 0.7 + opponentCard.def * 0.3;
         const userFinal = Math.floor(userBase * (0.85 + Math.random() * 0.3));
@@ -121,11 +140,11 @@ export function BattleArena({ userCard, opponentCard, onBattleComplete, onBack, 
             opponent_score: oppFinal,
             trophies_gained: 0,
             coins_gained: 0,
-            duration: 15,
+            duration,
             events,
         };
         setResult(battleResult);
-        playBattleAnimation(events);
+        playBattleAnimation(events, duration);
 
         // After animation, send result to backend for rewards (multiplayer only)
         if (isMultiplayer) {
@@ -146,16 +165,16 @@ export function BattleArena({ userCard, opponentCard, onBattleComplete, onBack, 
                 } catch (error) {
                     console.error('Result save error:', error);
                 }
-            }, 15500);
+            }, duration * 1000 + 500);
         }
     };
 
-    const playBattleAnimation = (battleEvents: BattleEvent[]) => {
+    const playBattleAnimation = (battleEvents: BattleEvent[], duration: number) => {
         let eventIndex = 0;
-        const totalDuration = 15000;
+        const totalDuration = duration * 1000;
         const timeStep = totalDuration / battleEvents.length;
 
-        console.log('Starting battle with', battleEvents.length, 'events, timeStep:', timeStep, 'ms');
+        console.log('Starting battle with', battleEvents.length, 'events, duration:', duration, 's, timeStep:', timeStep, 'ms');
 
         const processEvent = (index: number) => {
             if (index >= battleEvents.length) {
@@ -310,22 +329,24 @@ export function BattleArena({ userCard, opponentCard, onBattleComplete, onBack, 
                             </button>
 
                             <p className="mt-6 text-xs uppercase tracking-[0.2em] text-[var(--text-secondary)]">
-                                15 Second Battle
+                                ~{battleDuration} Second Battle
                             </p>
 
-                            <div className="mt-8 w-full max-w-xs space-y-3 rounded-xl border border-white/10 bg-black/40 p-4">
-                                <p className="text-center text-xs uppercase tracking-wider text-[var(--text-secondary)]">Battle Rewards</p>
-                                <div className="flex justify-center gap-6">
-                                    <div className="text-center">
-                                        <p className="text-2xl font-bold text-[var(--accent-gold)]">🏆 15</p>
-                                        <p className="text-[10px] uppercase text-[var(--text-secondary)]">Trophies (Win)</p>
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-2xl font-bold text-[var(--accent-gold)]">🪙 100</p>
-                                        <p className="text-[10px] uppercase text-[var(--text-secondary)]">Coins (Win)</p>
+                            {isMultiplayer && (
+                                <div className="mt-8 w-full max-w-xs space-y-3 rounded-xl border border-white/10 bg-black/40 p-4">
+                                    <p className="text-center text-xs uppercase tracking-wider text-[var(--text-secondary)]">Battle Rewards</p>
+                                    <div className="flex justify-center gap-6">
+                                        <div className="text-center">
+                                            <p className="text-2xl font-bold text-[var(--accent-gold)]">🏆 15</p>
+                                            <p className="text-[10px] uppercase text-[var(--text-secondary)]">Trophies (Win)</p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-2xl font-bold text-[var(--accent-gold)]">🪙 100</p>
+                                            <p className="text-[10px] uppercase text-[var(--text-secondary)]">Coins (Win)</p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -493,7 +514,7 @@ export function BattleArena({ userCard, opponentCard, onBattleComplete, onBack, 
                         </div>
                     </div>
 
-                    {result?.user_won && (
+                    {result?.user_won && isMultiplayer && (
                         <div className="mt-6 text-center">
                             <p className="text-3xl font-bold text-[var(--accent-gold)]">🏆 +{result.trophies_gained}</p>
                             <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)]">Trophies Earned</p>

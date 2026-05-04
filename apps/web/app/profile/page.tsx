@@ -9,6 +9,7 @@ export default function ProfilePage() {
     const [profileData, setProfileData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [isDemoProfile, setIsDemoProfile] = useState(false);
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -24,8 +25,39 @@ export default function ProfilePage() {
                 return;
             }
 
+            // Check if viewing another user's profile
+            const params = new URLSearchParams(window.location.search);
+            const viewUserId = params.get('id');
+
+            // Demo user profile (id=1)
+            if (viewUserId === '1') {
+                setIsDemoProfile(true);
+                setProfileData({
+                    username: 'DemoUser',
+                    coins: 5000,
+                    trophy: 150,
+                    highest_trophy: 200,
+                    total_matches: 50,
+                    total_wins: 30,
+                    win_rate: 60,
+                    best_card: {
+                        name: 'John Cena',
+                        rarity: 'Legendary',
+                        att: 85,
+                        def_: 75,
+                        image: '',
+                        total_wins: 15,
+                        total_played: 20,
+                    }
+                });
+                setLoading(false);
+                return;
+            }
+
+            const playerId = viewUserId ? parseInt(viewUserId, 10) : data.user.id;
+
             try {
-                const res = await fetch(`http://localhost:8000/api/player/${data.user.id}/profile`);
+                const res = await fetch(`http://localhost:8000/api/player/${playerId}/profile`);
                 if (res.ok) {
                     const profile = await res.json();
                     setProfileData(profile);
@@ -78,8 +110,8 @@ export default function ProfilePage() {
 
                         <div className="space-y-4">
                             <div className="rounded-2xl border border-white/8 bg-black/20 px-4 py-4 flex justify-between items-center">
-                                <p className="text-xs uppercase tracking-[0.22em] text-[var(--text-secondary)]">Current Rank</p>
-                                <p className="text-lg font-bold text-white">#12</p>
+                                <p className="text-xs uppercase tracking-[0.22em] text-[var(--text-secondary)]">Trophies</p>
+                                <p className="text-lg font-bold text-[var(--accent-gold)]">{profileData.trophy}</p>
                             </div>
                             <div className="rounded-2xl border border-white/8 bg-black/20 px-4 py-4 flex justify-between items-center">
                                 <p className="text-xs uppercase tracking-[0.22em] text-[var(--text-secondary)]">Total Coins</p>

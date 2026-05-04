@@ -10,6 +10,7 @@ const topNav = [
     { label: 'Roster', href: '/roster' },
     { label: 'Store', href: '/store' },
     { label: 'Leaderboard', href: '/leaderboard' },
+    { label: 'Social', href: '/social' },
 ];
 
 interface GiftCard {

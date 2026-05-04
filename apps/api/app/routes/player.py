@@ -139,21 +139,21 @@ async def get_lobby_stats(player_id: int, conn: asyncpg.Connection = Depends(get
     inventory = await conn.fetchrow("SELECT coins FROM inventories WHERE player_id = $1", player_id)
     coins = inventory['coins'] if inventory else 0
 
-    # 3. Total match stats
+    # 3. Total match stats (multiplayer only)
     match_stats = await conn.fetchrow(
         """
         SELECT COUNT(m.id) as total_matches,
                SUM(CASE WHEN m.winner_id = $1 THEN 1 ELSE 0 END) as total_wins
         FROM player_matches pm
         JOIN matches m ON pm.match_id = m.id
-        WHERE pm.player_id = $1
+        WHERE pm.player_id = $1 AND m.match_type = '1v1'
         """,
         player_id
     )
     total_matches = match_stats['total_matches'] or 0
     total_wins = match_stats['total_wins'] or 0
 
-    # 4. Last 3 matches with opponent name + score
+    # 4. Last 3 matches with opponent name + score (multiplayer only)
     recent_rows = await conn.fetch(
         """
         SELECT
@@ -173,7 +173,7 @@ async def get_lobby_stats(player_id: int, conn: asyncpg.Connection = Depends(get
         -- card scores (rough display score from card stats)
         LEFT JOIN cards self_c ON pm_self.card_id = self_c.id
         LEFT JOIN cards opp_c ON pm_opp.card_id = opp_c.id
-        WHERE pm_self.player_id = $1
+        WHERE pm_self.player_id = $1 AND m.match_type = '1v1'
         ORDER BY m.start_time DESC
         LIMIT 3
         """,

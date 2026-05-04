@@ -116,6 +116,8 @@ class LeaderboardEntry(BaseModel):
     player_id: int
     name: str
     trophy: int
+    wins: int = 0
+    losses: int = 0
 
 class PackOpenResponse(BaseModel):
     cards: List[InventoryCardResponse]

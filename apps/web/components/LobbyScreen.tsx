@@ -29,13 +29,6 @@ const actionCards = [
     },
 ];
 
-const friends = [
-    { name: 'AJ_StylesFan', status: 'Online', color: 'bg-emerald-400' },
-    { name: 'TribalChief01', status: 'In Match', color: 'bg-amber-400' },
-    { name: 'IyoSkyHigh', status: 'Online', color: 'bg-emerald-400' },
-    { name: 'LegendKane', status: 'Offline', color: 'bg-zinc-500' },
-];
-
 interface LobbyStats {
     username: string;
     trophy: number;
@@ -55,6 +48,7 @@ interface LobbyStats {
 export function LobbyScreen() {
     const router = useRouter();
     const [lobbyStats, setLobbyStats] = useState<LobbyStats | null>(null);
+    const [leaderboard, setLeaderboard] = useState<{ rank: number; name: string; trophy: number }[]>([]);
 
     useEffect(() => {
         const stored = localStorage.getItem('wr_user');
@@ -67,6 +61,12 @@ export function LobbyScreen() {
             .then(res => res.ok ? res.json() : null)
             .then(json => { if (json) setLobbyStats(json); })
             .catch(() => {});
+        
+        // Fetch top 3 leaderboard
+        fetch(`http://localhost:8000/api/combat/leaderboard?limit=3`)
+            .then(res => res.ok ? res.json() : [])
+            .then(data => setLeaderboard(data))
+            .catch(() => {});
     }, []);
 
     const wins = lobbyStats?.total_wins ?? 0;
@@ -78,7 +78,7 @@ export function LobbyScreen() {
             <div className="mx-auto flex min-h-screen max-w-[1600px] flex-col px-4 pb-6 pt-4 lg:px-6">
                 <TopNavigation />
 
-                <section className="grid flex-1 gap-4 xl:grid-cols-[260px_minmax(0,1fr)_280px]">
+                <section className="grid flex-1 gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
                     {/* ── Player Card ── */}
                     <aside className="metal-panel chrome-border slide-in-panel relative overflow-hidden rounded-[28px] p-5">
                         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--accent-raw)] via-[var(--accent-gold)] to-[var(--accent-smackdown)]" />
@@ -164,14 +164,9 @@ export function LobbyScreen() {
                         <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
                             {/* Recent Matches */}
                             <article className="metal-panel chrome-border slide-in-panel rounded-[28px] p-5">
-                                <div className="mb-5 flex items-center justify-between gap-4">
-                                    <div>
-                                        <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--text-secondary)]">Match History</p>
-                                        <h3 className="font-[var(--font-heading)] text-2xl uppercase">Recent Matches</h3>
-                                    </div>
-                                    <Link href="/battle" className="text-xs uppercase tracking-[0.24em] text-[var(--accent-smackdown)]">
-                                        View All
-                                    </Link>
+                                <div className="mb-5">
+                                    <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--text-secondary)]">Match History</p>
+                                    <h3 className="font-[var(--font-heading)] text-2xl uppercase">Recent Matches</h3>
                                 </div>
 
                                 {lobbyStats && lobbyStats.recent_matches.length > 0 ? (
@@ -211,68 +206,36 @@ export function LobbyScreen() {
                                 )}
                             </article>
 
-                            {/* Leaderboard (unchanged, still mock) */}
+                            {/* Leaderboard - Top 3 */}
                             <article className="metal-panel chrome-border slide-in-panel rounded-[28px] p-5">
                                 <p className="text-[11px] uppercase tracking-[0.24em] text-[var(--text-secondary)]">Live Rankings</p>
                                 <h3 className="mt-2 font-[var(--font-heading)] text-2xl uppercase">Leaderboard</h3>
 
                                 <div className="mt-5 space-y-3">
-                                    {[
-                                        ['1', 'BeltCollector', '542'],
-                                        ['2', 'RafiTheChampion', '318'],
-                                        ['3', 'RumbleQueen', '301'],
-                                    ].map(([position, name, score]) => (
-                                        <div key={name} className="flex items-center justify-between rounded-2xl border border-white/8 bg-black/25 px-4 py-3">
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 font-bold text-[var(--accent-gold)]">
-                                                    {position}
+                                    {leaderboard.length > 0 ? (
+                                        leaderboard.map((entry) => (
+                                            <div key={entry.rank} className="flex items-center justify-between rounded-2xl border border-white/8 bg-black/25 px-4 py-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 font-bold text-[var(--accent-gold)]">
+                                                        {entry.rank}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-semibold text-white">{entry.name}</p>
+                                                        <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-secondary)]">Trophy Count</p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-semibold text-white">{name}</p>
-                                                    <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-secondary)]">Trophy Count</p>
-                                                </div>
+                                                <span className="text-lg font-bold text-[var(--accent-gold)]">{entry.trophy}</span>
                                             </div>
-                                            <span className="text-lg font-bold text-[var(--accent-gold)]">{score}</span>
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-4 text-sm text-[var(--text-secondary)]">
+                                            No leaderboard data
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
                             </article>
                         </section>
                     </section>
-
-                    {/* ── Right Sidebar (Backstage — unchanged) ── */}
-                    <aside className="metal-panel chrome-border slide-in-panel rounded-[28px] p-5">
-                        <div className="flex items-center justify-between gap-3">
-                            <div>
-                                <p className="text-[11px] uppercase tracking-[0.24em] text-[var(--text-secondary)]">Chat & Activity</p>
-                                <h3 className="font-[var(--font-heading)] text-2xl uppercase">Backstage</h3>
-                            </div>
-                            <button type="button" className="text-xs uppercase tracking-[0.22em] text-[var(--accent-smackdown)]">Open</button>
-                        </div>
-
-                        <div className="mt-5 space-y-3">
-                            {friends.map((friend) => (
-                                <div key={friend.name} className="flex items-center justify-between rounded-2xl border border-white/8 bg-black/25 px-4 py-3">
-                                    <div className="flex items-center gap-3">
-                                        <span className={`h-3 w-3 rounded-full ${friend.color}`} />
-                                        <div>
-                                            <p className="font-medium text-white">{friend.name}</p>
-                                            <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-secondary)]">{friend.status}</p>
-                                        </div>
-                                    </div>
-                                    <button type="button" className="text-xs uppercase tracking-[0.2em] text-[var(--accent-gold)]">Chat</button>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="mt-5 rounded-[24px] border border-white/8 bg-black/30 p-4">
-                            <p className="text-[11px] uppercase tracking-[0.24em] text-[var(--text-secondary)]">Global Feed</p>
-                            <div className="mt-4 space-y-4 text-sm leading-6 text-zinc-300">
-                                <p><span className="font-semibold text-white">ArenaBot</span> — Daily pack reset is live. Claim before the next bell rings.</p>
-                                <p><span className="font-semibold text-white">Trade Alert</span> — AJ_StylesFan wants to swap a Rare striker for 120 coins.</p>
-                            </div>
-                        </div>
-                    </aside>
                 </section>
 
                 <footer className="metal-panel chrome-border mt-4 flex flex-col gap-2 rounded-2xl px-5 py-4 text-xs uppercase tracking-[0.22em] text-[var(--text-secondary)] md:flex-row md:items-center md:justify-between">

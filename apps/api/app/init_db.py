@@ -63,6 +63,14 @@ async def create_tables():
             friends INTEGER DEFAULT 0
         );
 
+        CREATE TABLE friend_requests (
+            id SERIAL PRIMARY KEY,
+            sender_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+            receiver_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+            status VARCHAR(20) DEFAULT 'pending',
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE TABLE private_messages (
             id SERIAL PRIMARY KEY,
             sender_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
