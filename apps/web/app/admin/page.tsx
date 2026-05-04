@@ -28,6 +28,73 @@ export default function AdminDashboard() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
 
+    // Users Management State
+    const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
+    const [usersList, setUsersList] = useState<any[]>([]);
+
+    const fetchUsers = async () => {
+        try {
+            const res = await fetch('http://localhost:8000/api/admin/users');
+            if (res.ok) {
+                const data = await res.json();
+                setUsersList(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch users:", error);
+        }
+    };
+
+    // Packs Management State
+    const [isPacksModalOpen, setIsPacksModalOpen] = useState(false);
+    const [packsList, setPacksList] = useState<any[]>([]);
+    const [newCustomPack, setNewCustomPack] = useState({
+        type: '',
+        price: 500,
+        min_coin: 100,
+        max_coin: 300,
+        is_event: false,
+        event_name: '',
+        cards_config: '[\n  { "type": "random", "count": 3, "weights": { "Special": 100 } }\n]'
+    });
+
+    const fetchPacks = async () => {
+        try {
+            const res = await fetch('http://localhost:8000/api/admin/packs');
+            if (res.ok) {
+                const data = await res.json();
+                setPacksList(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch packs:", error);
+        }
+    };
+
+    const [eventsList, setEventsList] = useState<any[]>([]);
+
+    const fetchEvents = async () => {
+        try {
+            const res = await fetch('http://localhost:8000/api/admin/events');
+            if (res.ok) {
+                const data = await res.json();
+                setEventsList(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch events:", error);
+        }
+    };
+
+    // Event Management State
+    const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+    const [newEventData, setNewEventData] = useState({
+        name: '',
+        entry_trophy: 0,
+        start_time: new Date().toISOString().slice(0, 16),
+        end_time: new Date(Date.now() + 86400000 * 7).toISOString().slice(0, 16),
+        pack_price: 500,
+        pack_min_coin: 100,
+        pack_max_coin: 300
+    });
+
     // Card Database State
     const [groupedCards, setGroupedCards] = useState<any[]>([]);
     const [expandedWrestler, setExpandedWrestler] = useState<string | null>(null);
@@ -57,6 +124,8 @@ export default function AdminDashboard() {
         }
         setUser(data.user);
         fetchGroupedCards();
+        fetchEvents();
+        fetchPacks();
     }, [router]);
 
     const handleFileUpload = async (file: File, callback: (url: string) => void) => {
@@ -99,7 +168,8 @@ export default function AdminDashboard() {
                     att: Number(eventData.att),
                     def: Number(eventData.def),
                     price: Number(eventData.price),
-                    type: eventData.type || 'Event'
+                    type: eventData.type, // from select
+                    rarity: 'Special' // Fixed
                 };
             }
 
@@ -259,8 +329,9 @@ export default function AdminDashboard() {
                             }} className="bg-[var(--accent-gold)] text-black hover:bg-yellow-500 p-3 rounded text-left transition-colors text-sm font-bold uppercase tracking-wider shadow-[0_0_15px_rgba(212,175,55,0.4)]">
                                 + Add Cards
                             </button>
-                            <button className="bg-[var(--bg-tertiary)] chrome-border hover:bg-[var(--accent-smackdown)] p-3 rounded text-left transition-colors text-sm font-bold uppercase tracking-wider">Manage Users</button>
-                            <button className="bg-[var(--bg-tertiary)] chrome-border hover:bg-[var(--accent-smackdown)] p-3 rounded text-left transition-colors text-sm font-bold uppercase tracking-wider">Configure Packs</button>
+                            <button onClick={() => { setIsUsersModalOpen(true); fetchUsers(); }} className="bg-[var(--bg-tertiary)] chrome-border hover:bg-[var(--accent-smackdown)] p-3 rounded text-left transition-colors text-sm font-bold uppercase tracking-wider">Manage Users</button>
+                            <button onClick={() => { setIsPacksModalOpen(true); fetchPacks(); }} className="bg-[var(--bg-tertiary)] chrome-border hover:bg-[var(--accent-smackdown)] p-3 rounded text-left transition-colors text-sm font-bold uppercase tracking-wider">Configure Packs</button>
+                            <button onClick={() => setIsEventModalOpen(true)} className="bg-[var(--bg-tertiary)] chrome-border hover:bg-[var(--accent-smackdown)] p-3 rounded text-left transition-colors text-sm font-bold uppercase tracking-wider">Event Management</button>
                         </div>
                     </div>
                 </div>
@@ -464,15 +535,17 @@ export default function AdminDashboard() {
                                     <div className="grid grid-cols-3 gap-4 border-t border-white/10 pt-4 mt-4">
                                         <div className="space-y-1">
                                             <label className="text-xs font-bold uppercase text-gray-400 tracking-wider">Event Name (Type)</label>
-                                            <input required type="text" value={eventData.type} onChange={e => setEventData({...eventData, type: e.target.value})} className="w-full bg-[var(--accent-gold)]/10 border border-[var(--accent-gold)]/50 rounded p-2 text-white" placeholder="WrestleMania 40" />
+                                            <select required value={eventData.type} onChange={e => setEventData({...eventData, type: e.target.value})} className="w-full bg-[var(--accent-gold)]/10 border border-[var(--accent-gold)]/50 rounded p-2 text-white">
+                                                <option value="" disabled>Select Event...</option>
+                                                {eventsList.map(ev => (
+                                                    <option key={ev.id} value={ev.name}>{ev.name}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-xs font-bold uppercase text-gray-400 tracking-wider">Rarity</label>
-                                            <select value={eventData.rarity} onChange={e => setEventData({...eventData, rarity: e.target.value})} className="w-full bg-black/60 border border-white/10 rounded p-2 text-white">
-                                                <option>Common</option>
-                                                <option>Rare</option>
-                                                <option>Gold</option>
-                                                <option>Legendary</option>
+                                            <select disabled value="Special" className="w-full bg-black/60 border border-white/10 rounded p-2 text-white opacity-50 cursor-not-allowed">
+                                                <option value="Special">Special</option>
                                             </select>
                                         </div>
                                         <div className="space-y-1">
@@ -491,6 +564,302 @@ export default function AdminDashboard() {
                                 {isSubmitting ? 'Processing...' : cardMode === 'base' ? 'Submit All 4 Variants' : 'Mint Event Card'}
                             </button>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Manage Users Modal */}
+            {isUsersModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-black/80">
+                    <div className="metal-panel chrome-border relative w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col rounded-2xl p-6 shadow-2xl">
+                        <button onClick={() => setIsUsersModalOpen(false)} className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20">
+                            ✕
+                        </button>
+                        
+                        <h2 className="text-2xl font-bold mb-6 font-[var(--font-heading)] uppercase text-white">Manage Players</h2>
+                        
+                        <div className="overflow-y-auto pr-2 flex-1 space-y-4">
+                            {usersList.length === 0 ? (
+                                <p className="text-[var(--text-secondary)] italic">No players found.</p>
+                            ) : (
+                                usersList.map((player) => (
+                                    <div key={player.id} className="bg-black/40 border border-white/10 rounded-xl p-4 flex items-center justify-between">
+                                        <div>
+                                            <p className="font-bold text-lg text-white">{player.name}</p>
+                                            <p className="text-xs text-gray-400">{player.email}</p>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <div className="text-right flex items-center gap-2">
+                                                <p className="text-xs text-gray-400 uppercase tracking-wider font-bold">Coins:</p>
+                                                <input 
+                                                    type="number" 
+                                                    className="bg-black/60 border border-[var(--accent-gold)] rounded px-2 py-1 text-white w-24 text-right font-bold"
+                                                    value={player.coins}
+                                                    onChange={(e) => {
+                                                        const newUsers = [...usersList];
+                                                        const index = newUsers.findIndex(u => u.id === player.id);
+                                                        newUsers[index].coins = Number(e.target.value);
+                                                        setUsersList(newUsers);
+                                                    }}
+                                                />
+                                            </div>
+                                            <button 
+                                                onClick={async () => {
+                                                    try {
+                                                        const res = await fetch(`http://localhost:8000/api/admin/users/${player.id}/coins`, {
+                                                            method: 'PUT',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ coins: player.coins })
+                                                        });
+                                                        if (res.ok) {
+                                                            alert(`Updated coins for ${player.name} to ${player.coins}`);
+                                                        } else {
+                                                            alert("Failed to update coins");
+                                                        }
+                                                    } catch (err) {
+                                                        alert("Network error");
+                                                    }
+                                                }}
+                                                className="bg-[var(--success)] hover:bg-green-600 border border-green-500/50 text-white px-4 py-2 rounded font-bold uppercase tracking-wider text-sm transition-colors"
+                                            >
+                                                Save
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Configure Packs Modal */}
+            {isPacksModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-black/80">
+                    <div className="metal-panel chrome-border relative w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col rounded-2xl p-6 shadow-2xl">
+                        <button onClick={() => setIsPacksModalOpen(false)} className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20">
+                            ✕
+                        </button>
+                        
+                        <h2 className="text-2xl font-bold mb-6 font-[var(--font-heading)] uppercase text-white">Configure Packs</h2>
+                        
+                        <div className="overflow-y-auto pr-2 flex-1 space-y-6">
+                            
+                            <div className="mb-2 border border-[var(--accent-gold)]/30 bg-black/40 p-6 rounded-xl">
+                                <h3 className="text-xl font-bold mb-4 text-[var(--accent-gold)] uppercase tracking-wider">Create Custom Pack</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Pack Name</label>
+                                        <input type="text" value={newCustomPack.type} onChange={e => setNewCustomPack({...newCustomPack, type: e.target.value})} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" placeholder="e.g. Promo Pack" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Price</label>
+                                        <input type="number" value={newCustomPack.price} onChange={e => setNewCustomPack({...newCustomPack, price: Number(e.target.value)})} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Min Coins</label>
+                                        <input type="number" value={newCustomPack.min_coin} onChange={e => setNewCustomPack({...newCustomPack, min_coin: Number(e.target.value)})} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Max Coins</label>
+                                        <input type="number" value={newCustomPack.max_coin} onChange={e => setNewCustomPack({...newCustomPack, max_coin: Number(e.target.value)})} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" />
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-4 mb-4">
+                                    <label className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-white">
+                                        <input type="checkbox" checked={newCustomPack.is_event} onChange={e => setNewCustomPack({...newCustomPack, is_event: e.target.checked})} className="w-4 h-4 accent-[var(--accent-gold)]" />
+                                        Is Event Pack?
+                                    </label>
+                                    {newCustomPack.is_event && (
+                                        <select value={newCustomPack.event_name} onChange={e => setNewCustomPack({...newCustomPack, event_name: e.target.value, type: e.target.value + ' Pack'})} className="bg-black/60 border border-[var(--accent-gold)] rounded p-2 text-white font-bold flex-1">
+                                            <option value="" disabled>Select Event...</option>
+                                            {eventsList.map(ev => <option key={ev.id} value={ev.name}>{ev.name}</option>)}
+                                        </select>
+                                    )}
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Cards Config (JSON)</label>
+                                    <textarea value={newCustomPack.cards_config} onChange={e => setNewCustomPack({...newCustomPack, cards_config: e.target.value})} className="w-full bg-black/60 border border-white/20 rounded p-3 text-white font-mono text-xs h-24 custom-scrollbar focus:border-[var(--accent-smackdown)] outline-none" />
+                                </div>
+                                <div className="flex justify-end">
+                                    <button onClick={async () => {
+                                        try {
+                                            const payload = {
+                                                ...newCustomPack,
+                                                cards_config: JSON.parse(newCustomPack.cards_config),
+                                                store_id: 1
+                                            };
+                                            const res = await fetch(`http://localhost:8000/api/admin/packs`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify(payload)
+                                            });
+                                            if(res.ok) { 
+                                                alert("Pack Created Successfully!"); 
+                                                fetchPacks(); 
+                                                setNewCustomPack({...newCustomPack, type: ''});
+                                            } else {
+                                                alert("Failed to create custom pack");
+                                            }
+                                        } catch(e) { 
+                                            alert("Invalid JSON format in config."); 
+                                        }
+                                    }} className="bg-[var(--accent-gold)] text-black px-6 py-2 rounded font-bold uppercase tracking-wider text-sm transition-colors hover:bg-yellow-500 shadow-[0_0_15px_rgba(212,175,55,0.4)]">
+                                        + Create Custom Pack
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <h3 className="text-xl font-bold pt-4 mb-2 text-white uppercase tracking-wider border-b border-white/10 pb-2">Existing Packs</h3>
+                            {packsList.length === 0 ? (
+                                <p className="text-[var(--text-secondary)] italic">No packs found.</p>
+                            ) : (
+                                packsList.map((pack) => (
+                                    <div key={pack.id} className="bg-black/40 border border-white/10 rounded-xl p-6">
+                                        <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-4">
+                                            <h3 className="text-xl font-bold text-[var(--accent-gold)] uppercase tracking-wider">{pack.type} Pack</h3>
+                                            <span className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-400 font-bold uppercase">{pack.is_event ? 'Event Pack' : 'Base Pack'}</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-6 mb-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Price (Coins)</label>
+                                                <input type="number" value={pack.price} onChange={(e) => {
+                                                    const newPacks = [...packsList];
+                                                    const index = newPacks.findIndex(p => p.id === pack.id);
+                                                    newPacks[index].price = Number(e.target.value);
+                                                    setPacksList(newPacks);
+                                                }} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Min Coins Yield</label>
+                                                <input type="number" value={pack.min_coin} onChange={(e) => {
+                                                    const newPacks = [...packsList];
+                                                    const index = newPacks.findIndex(p => p.id === pack.id);
+                                                    newPacks[index].min_coin = Number(e.target.value);
+                                                    setPacksList(newPacks);
+                                                }} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Max Coins Yield</label>
+                                                <input type="number" value={pack.max_coin} onChange={(e) => {
+                                                    const newPacks = [...packsList];
+                                                    const index = newPacks.findIndex(p => p.id === pack.id);
+                                                    newPacks[index].max_coin = Number(e.target.value);
+                                                    setPacksList(newPacks);
+                                                }} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" />
+                                            </div>
+                                        </div>
+                                        <div className="mb-4">
+                                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Cards Configuration (JSON)</label>
+                                            <textarea 
+                                                value={typeof pack.cards_config === 'string' ? pack.cards_config : JSON.stringify(pack.cards_config, null, 2)} 
+                                                onChange={(e) => {
+                                                    const newPacks = [...packsList];
+                                                    const index = newPacks.findIndex(p => p.id === pack.id);
+                                                    newPacks[index].cards_config = e.target.value;
+                                                    setPacksList(newPacks);
+                                                }}
+                                                className="w-full bg-black/60 border border-white/20 rounded p-3 text-white font-mono text-xs h-32 custom-scrollbar focus:border-[var(--accent-smackdown)] outline-none" 
+                                            />
+                                        </div>
+                                        <div className="flex justify-end">
+                                            <button 
+                                                onClick={async () => {
+                                                    try {
+                                                        const payload = { ...pack };
+                                                        if (typeof payload.cards_config === 'string') {
+                                                            payload.cards_config = JSON.parse(payload.cards_config);
+                                                        }
+                                                        const res = await fetch(`http://localhost:8000/api/admin/packs/${pack.id}`, {
+                                                            method: 'PUT',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify(payload)
+                                                        });
+                                                        if (res.ok) {
+                                                            alert(`Successfully updated ${pack.type} Pack`);
+                                                        } else {
+                                                            alert("Failed to update pack");
+                                                        }
+                                                    } catch (err) {
+                                                        alert("Invalid JSON format. Please ensure the Cards Configuration is valid JSON.");
+                                                    }
+                                                }}
+                                                className="bg-[var(--accent-smackdown)] hover:bg-blue-600 text-white px-6 py-2 rounded font-bold uppercase tracking-wider text-sm transition-colors"
+                                            >
+                                                Save Pack Configuration
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Event Management Modal */}
+            {isEventModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-black/80">
+                    <div className="metal-panel chrome-border relative w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col rounded-2xl p-6 shadow-2xl">
+                        <button onClick={() => setIsEventModalOpen(false)} className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20">
+                            ✕
+                        </button>
+                        
+                        <h2 className="text-2xl font-bold mb-6 font-[var(--font-heading)] uppercase text-white">Create New Event</h2>
+                        
+                        <div className="overflow-y-auto pr-2 flex-1 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Event Name</label>
+                                    <input type="text" value={newEventData.name} onChange={e => setNewEventData({...newEventData, name: e.target.value})} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" placeholder="e.g. WrestleMania" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Entry Trophy</label>
+                                    <input type="number" value={newEventData.entry_trophy} onChange={e => setNewEventData({...newEventData, entry_trophy: Number(e.target.value)})} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Start Time</label>
+                                    <input type="datetime-local" value={newEventData.start_time} onChange={e => setNewEventData({...newEventData, start_time: e.target.value})} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">End Time</label>
+                                    <input type="datetime-local" value={newEventData.end_time} onChange={e => setNewEventData({...newEventData, end_time: e.target.value})} className="w-full bg-black/60 border border-white/20 rounded p-2 text-white font-bold" />
+                                </div>
+                            </div>
+                            
+                            <div className="mt-6 flex justify-end pt-4">
+                                <button 
+                                    onClick={async () => {
+                                        if(!newEventData.name.trim()) { alert("Please enter an event name."); return; }
+                                        try {
+                                            const res = await fetch(`http://localhost:8000/api/admin/events`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                    name: newEventData.name,
+                                                    entry_trophy: newEventData.entry_trophy,
+                                                    start_time: new Date(newEventData.start_time).toISOString(),
+                                                    end_time: new Date(newEventData.end_time).toISOString(),
+                                                })
+                                            });
+                                            if (res.ok) {
+                                                alert(`Event ${newEventData.name} Created successfully!`);
+                                                setIsEventModalOpen(false);
+                                                fetchEvents(); // refresh events list for dropdowns
+                                                setNewEventData({...newEventData, name: ''}); // reset
+                                            } else {
+                                                alert("Failed to create event");
+                                            }
+                                        } catch (err) {
+                                            alert("Network error");
+                                        }
+                                    }}
+                                    className="w-full bg-[var(--accent-gold)] hover:bg-yellow-600 text-black px-6 py-4 rounded-xl font-bold uppercase tracking-wider transition-colors shadow-[0_0_15px_rgba(212,175,55,0.4)]"
+                                >
+                                    Create Event
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

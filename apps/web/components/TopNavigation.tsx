@@ -89,10 +89,11 @@ export function TopNavigation() {
     }, []);
 
     const claimGift = async () => {
-        if (!user?.id || claiming) return;
+        const playerId = user?.user?.id || user?.player?.id;
+        if (!playerId || claiming) return;
         setClaiming(true);
         try {
-            const res = await fetch(`http://localhost:8000/api/player/${user.id}/claim-gift`, { method: 'POST' });
+            const res = await fetch(`http://localhost:8000/api/player/${playerId}/claim-gift`, { method: 'POST' });
             if (res.ok) {
                 const data = await res.json();
                 setGiftResult(data);

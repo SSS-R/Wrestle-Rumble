@@ -352,3 +352,70 @@ async def claim_gift(player_id: int, conn: asyncpg.Connection = Depends(get_db))
         "cards": awarded_cards,
         "message": f"Welcome to the arena! You've received {coins_awarded} coins and 2 cards!"
     }
+
+# ── Daily Pack ──────────────────────────────────────────────────────────────
+from datetime import datetime, timezone, timedelta
+import json as _json
+
+class DailyPackStatus(BaseModel):
+    available: bool
+    next_reset: Optional[str]  # ISO string of when the pack resets
+
+class DailyPackResult(BaseModel):
+    coins_gained: int
+    cards: list[dict]
+
+@router.get("/{player_id}/daily-pack/status", response_model=DailyPackStatus)
+async def daily_pack_status(player_id: int, conn: asyncpg.Connection = Depends(get_db)):
+    player = await conn.fetchrow("SELECT last_daily_pack FROM players WHERE id = $1", player_id)
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+    last = player['last_daily_pack']
+    if last is None:
+        return {"available": True, "next_reset": None}
+    # Make last aware if it isn't
+    if last.tzinfo is None:
+        last = last.replace(tzinfo=timezone.utc)
+    next_reset = last + timedelta(hours=24)
+    now = datetime.now(timezone.utc)
+    if now >= next_reset:
+        return {"available": True, "next_reset": None}
+    return {"available": False, "next_reset": next_reset.isoformat()}
+
+@router.post("/{player_id}/daily-pack/claim", response_model=DailyPackResult)
+async def claim_daily_pack(player_id: int, conn: asyncpg.Connection = Depends(get_db)):
+    player = await conn.fetchrow("SELECT last_daily_pack FROM players WHERE id = $1", player_id)
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+    last = player['last_daily_pack']
+    if last is not None:
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) < last + timedelta(hours=24):
+            raise HTTPException(status_code=400, detail="Daily pack not yet available")
+
+    # Open the Basic pack using the pack service
+    from ..services.packs import open_pack
+    try:
+        result = await open_pack(conn, player_id, 'Basic')
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Mark timestamp
+    await conn.execute("UPDATE players SET last_daily_pack = NOW() WHERE id = $1", player_id)
+
+    # Simplify card output for modal display
+    simple_cards = []
+    for c in result['cards']:
+        card = c.get('card', {})
+        simple_cards.append({
+            "id": card.get('id'),
+            "name": card.get('name'),
+            "rarity": card.get('rarity'),
+            "att": card.get('att'),
+            "def": card.get('def'),
+            "image": card.get('image'),
+        })
+
+    return {"coins_gained": result['coins_gained'], "cards": simple_cards}
+

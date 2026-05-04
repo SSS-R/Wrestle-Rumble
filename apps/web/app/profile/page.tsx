@@ -118,6 +118,20 @@ export default function ProfilePage() {
                                 <p className="text-lg font-bold text-[var(--accent-gold)]">{profileData.coins.toLocaleString()}</p>
                             </div>
                         </div>
+
+                        {/* Logout Button */}
+                        <button 
+                            onClick={() => {
+                                localStorage.removeItem('wr_user');
+                                router.push('/login');
+                            }}
+                            className="mt-8 w-full border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-colors rounded-xl py-3 font-bold uppercase tracking-widest text-sm flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(255,0,0,0.1)]"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            Logout
+                        </button>
                     </aside>
 
                     {/* Right Content - Career Statistics */}

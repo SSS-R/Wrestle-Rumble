@@ -124,6 +124,7 @@ class PackOpenResponse(BaseModel):
     coins_gained: int = 0
 
 
+
 class QueueStatus(BaseModel):
     queued: bool
     waiting_time: int
@@ -137,3 +138,35 @@ class MatchmakingResult(BaseModel):
     player2_id: int
     player1_card: dict
     player2_card: dict
+
+class UpdateCoinsRequest(BaseModel):
+    coins: int
+
+class PackCreate(BaseModel):
+    type: str
+    price: int
+    store_id: int = 1
+    min_coin: int
+    max_coin: int
+    cards_config: List[dict]
+    is_event: bool = False
+    event_name: Optional[str] = None
+
+class PackResponse(PackCreate):
+    id: int
+    class Config:
+        from_attributes = True
+
+class EventCreate(BaseModel):
+    name: str
+    entry_trophy: int
+    start_time: datetime
+    end_time: datetime
+
+class EventResponse(BaseModel):
+    id: int
+    name: str
+    entry_trophy: int
+    start_time: datetime
+    end_time: datetime
+
