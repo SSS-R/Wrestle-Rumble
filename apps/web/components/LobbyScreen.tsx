@@ -65,17 +65,29 @@ export function LobbyScreen() {
                 console.log('Lobby response status:', res.status);
                 return res.ok ? res.json() : null;
             })
-            .then(json => { 
-                console.log('Lobby data:', json);
-                if (json) setLobbyStats(json); 
-            })
-            .catch(err => console.error('Lobby fetch error:', err));
-        
+        // Fetch lobby stats
+        fetch(`http://localhost:8000/api/player/${pid}/lobby`)
+            .then(res => res.ok ? res.json() : null)
+            .then(json => { if (json) setLobbyStats(json); })
+            .catch((err) => {
+                // Surface network/backend failures for debugging while keeping UX unchanged
+                if (process.env.NODE_ENV !== "production") {
+                    // eslint-disable-next-line no-console
+                    console.error("Failed to fetch lobby stats", err);
+                }
+            });
+
         // Fetch top 3 leaderboard
         fetch(`http://localhost:8000/api/combat/leaderboard?limit=3`)
             .then(res => res.ok ? res.json() : [])
             .then(data => setLeaderboard(data))
-            .catch(() => {});
+            .catch((err) => {
+                // Surface network/backend failures for debugging while keeping UX unchanged
+                if (process.env.NODE_ENV !== "production") {
+                    // eslint-disable-next-line no-console
+                    console.error("Failed to fetch leaderboard", err);
+                }
+            });
     }, []);
 
     const wins = lobbyStats?.total_wins ?? 0;
