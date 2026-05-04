@@ -18,13 +18,6 @@ interface RosterCard {
     is_active: boolean;
 }
 
-const rarityStars: Record<string, string> = {
-    Legendary: '★★★★★',
-    Gold: '★★★★',
-    Rare: '★★★',
-    Common: '★',
-};
-
 const rarityBorder: Record<string, string> = {
     Legendary: 'border-[var(--accent-gold)] shadow-[0_0_15px_rgba(212,175,55,0.3)] group-hover:shadow-[0_0_25px_rgba(212,175,55,0.6)]',
     Gold: 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.3)] group-hover:shadow-[0_0_25px_rgba(168,85,247,0.6)]',
@@ -171,9 +164,6 @@ export function RosterScreen() {
                                         <span className="font-bold text-red-500">ATK {card.att}</span>
                                         <span className="font-bold text-blue-500">DEF {card.def_}</span>
                                     </div>
-                                    <span className="text-[10px] font-bold uppercase text-zinc-500 tracking-wider">
-                                        {rarityStars[card.rarity] || '★'}
-                                    </span>
                                 </div>
                             </button>
                         ))}

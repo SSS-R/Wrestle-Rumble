@@ -209,3 +209,114 @@ async def propose_trade(player_id: int, data: TradeProposal, conn: asyncpg.Conne
         """, player_id, data.friend_id)
     
     return {"status": "trade_proposed", "trade_id": trade_id}
+
+
+class ChallengeRequest(BaseModel):
+    challenger_name: str
+    challenger_trophy: int
+
+@router.get("/{player_id}/challenges")
+async def get_challenges(player_id: int, conn: asyncpg.Connection = Depends(get_db)):
+    """Get pending challenge requests for a player"""
+    challenges = await conn.fetch("""
+        SELECT cr.id, cr.challenger_id, u.name as challenger_name, p.trophy as challenger_trophy, cr.created_at
+        FROM challenge_requests cr
+        JOIN users u ON u.id = cr.challenger_id
+        JOIN players p ON p.id = cr.challenger_id
+        WHERE cr.receiver_id = $1 AND cr.status = 'pending'
+        ORDER BY cr.created_at DESC
+    """, player_id)
+    
+    return [
+        {
+            "id": c['id'],
+            "challenger_id": c['challenger_id'],
+            "challenger_name": c['challenger_name'],
+            "challenger_trophy": c['challenger_trophy'],
+        }
+        for c in challenges
+    ]
+
+
+@router.post("/{player_id}/challenge")
+async def send_challenge(player_id: int, data: dict, conn: asyncpg.Connection = Depends(get_db)):
+    """Send a challenge request to a friend"""
+    friend_id = data.get('friend_id')
+    
+    if not friend_id:
+        raise HTTPException(status_code=400, detail="friend_id required")
+    
+    # Verify friendship
+    friend_social = await conn.fetchrow(
+        "SELECT id FROM socials WHERE player_id = $1 AND friends > 0",
+        friend_id
+    )
+    
+    if not friend_social:
+        raise HTTPException(status_code=400, detail="Not friends with this player")
+    
+    # Check if challenge already exists
+    existing = await conn.fetchrow(
+        "SELECT id FROM challenge_requests WHERE challenger_id = $1 AND receiver_id = $2 AND status = 'pending'",
+        player_id, friend_id
+    )
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Challenge already sent")
+    
+    # Create challenge request
+    async with conn.transaction():
+        await conn.execute("""
+            INSERT INTO challenge_requests (challenger_id, receiver_id, status)
+            VALUES ($1, $2, 'pending')
+        """, player_id, friend_id)
+    
+    return {"status": "challenge_sent"}
+
+
+@router.post("/{player_id}/challenges/{challenge_id}/accept")
+async def accept_challenge(player_id: int, challenge_id: int, conn: asyncpg.Connection = Depends(get_db)):
+    """Accept a challenge request"""
+    # Verify the challenge is for this player
+    challenge = await conn.fetchrow(
+        "SELECT * FROM challenge_requests WHERE id = $1 AND receiver_id = $2 AND status = 'pending'",
+        challenge_id, player_id
+    )
+    
+    if not challenge:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+    
+    # Update challenge status to accepted
+    async with conn.transaction():
+        await conn.execute("""
+            UPDATE challenge_requests SET status = 'accepted'
+            WHERE id = $1
+        """, challenge_id)
+    
+    return {
+        "status": "accepted",
+        "challenger_id": challenge['challenger_id'],
+        "challenge_id": challenge_id,
+    }
+
+
+@router.post("/{player_id}/challenges/{challenge_id}/reject")
+async def reject_challenge(player_id: int, challenge_id: int, conn: asyncpg.Connection = Depends(get_db)):
+    """Reject a challenge request"""
+    # Verify the challenge is for this player
+    challenge = await conn.fetchrow(
+        "SELECT * FROM challenge_requests WHERE id = $1 AND receiver_id = $2 AND status = 'pending'",
+        challenge_id, player_id
+    )
+    
+    if not challenge:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+    
+    # Update challenge status to rejected
+    async with conn.transaction():
+        await conn.execute("""
+            UPDATE challenge_requests SET status = 'rejected'
+            WHERE id = $1
+        """, challenge_id)
+    
+    return {"status": "rejected"}

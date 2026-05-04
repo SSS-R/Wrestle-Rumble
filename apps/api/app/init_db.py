@@ -163,6 +163,14 @@ async def create_tables():
             receiver_id INTEGER REFERENCES players(id) ON DELETE CASCADE
         );
 
+        CREATE TABLE challenge_requests (
+            id SERIAL PRIMARY KEY,
+            challenger_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+            receiver_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+            status VARCHAR(20) DEFAULT 'pending',
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE TABLE trade_cards (
             trade_id INTEGER REFERENCES trades(id) ON DELETE CASCADE,
             card_id INTEGER REFERENCES cards(id) ON DELETE CASCADE,

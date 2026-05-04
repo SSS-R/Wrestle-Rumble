@@ -19,6 +19,13 @@ type FriendRequest = {
     sender_trophy: number;
 };
 
+type Challenge = {
+    id: number;
+    challenger_id: number;
+    challenger_name: string;
+    challenger_trophy: number;
+};
+
 type Card = {
     id: number;
     name: string;
@@ -41,6 +48,7 @@ export function SocialScreen() {
     const [playerId, setPlayerId] = useState<number | null>(null);
     const [friends, setFriends] = useState<Friend[]>([]);
     const [requests, setRequests] = useState<FriendRequest[]>([]);
+    const [challenges, setChallenges] = useState<Challenge[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
@@ -52,6 +60,7 @@ export function SocialScreen() {
     const [yourOffer, setYourOffer] = useState<TradeOffer>({ cards: [], coins: 0 });
     const [theirOffer, setTheirOffer] = useState<TradeOffer>({ cards: [], coins: 0 });
     const [tradeError, setTradeError] = useState('');
+    const [challengeSent, setChallengeSent] = useState<number | null>(null);
 
     useEffect(() => {
         const stored = localStorage.getItem('wr_user');
@@ -66,6 +75,7 @@ export function SocialScreen() {
         if (playerId) {
             loadFriends();
             loadRequests();
+            loadChallenges();
         }
     }, [playerId]);
 
@@ -112,6 +122,15 @@ export function SocialScreen() {
             setRequests(data);
         } catch (err) {
             console.error('Failed to load requests:', err);
+        }
+    };
+
+    const loadChallenges = async () => {
+        try {
+            const data = await fetchApi(`/social/${playerId}/challenges`);
+            setChallenges(data);
+        } catch (err) {
+            console.error('Failed to load challenges:', err);
         }
     };
 
@@ -172,8 +191,40 @@ export function SocialScreen() {
         f.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const challengeFriend = (friendId: number) => {
-        router.push(`/battle?opponent=${friendId}`);
+    const challengeFriend = async (friendId: number) => {
+        try {
+            await fetchApi(`/social/${playerId}/challenge`, {
+                method: 'POST',
+                body: JSON.stringify({ friend_id: friendId }),
+            });
+            setChallengeSent(friendId);
+            setTimeout(() => setChallengeSent(null), 3000);
+        } catch (err: any) {
+            alert(err.message || 'Failed to send challenge');
+        }
+    };
+
+    const handleAcceptChallenge = async (challengeId: number, challengerId: number) => {
+        try {
+            const result = await fetchApi(`/social/${playerId}/challenges/${challengeId}/accept`, {
+                method: 'POST',
+            });
+            // Redirect to battle with the challenger
+            router.push(`/battle?opponent=${challengerId}&challenge=${challengeId}`);
+        } catch (err: any) {
+            alert(err.message || 'Failed to accept challenge');
+        }
+    };
+
+    const handleRejectChallenge = async (challengeId: number) => {
+        try {
+            await fetchApi(`/social/${playerId}/challenges/${challengeId}/reject`, {
+                method: 'POST',
+            });
+            loadChallenges();
+        } catch (err: any) {
+            alert(err.message || 'Failed to reject challenge');
+        }
     };
 
     const openTradeModal = (friend: Friend) => {
@@ -292,9 +343,14 @@ export function SocialScreen() {
                                                 <div className="flex gap-2">
                                                     <button
                                                         onClick={() => challengeFriend(1)}
-                                                        className="text-xs bg-[var(--accent-raw)] px-3 py-1 rounded font-bold text-white hover:bg-red-600 transition"
+                                                        disabled={challengeSent === 1}
+                                                        className={`text-xs px-3 py-1 rounded font-bold transition ${
+                                                            challengeSent === 1
+                                                                ? 'bg-green-600 text-white cursor-default'
+                                                                : 'bg-[var(--accent-raw)] text-white hover:bg-red-600'
+                                                        }`}
                                                     >
-                                                        ⚔️ Challenge
+                                                        {challengeSent === 1 ? '✓ Sent' : '⚔️ Challenge'}
                                                     </button>
                                                     <button
                                                         onClick={() => openTradeModal({ id: 1, name: 'DemoUser', trophy: 150, is_online: true })}
@@ -328,9 +384,14 @@ export function SocialScreen() {
                                             <div className="flex gap-2">
                                                 <button
                                                     onClick={() => challengeFriend(friend.id)}
-                                                    className="text-xs bg-[var(--accent-raw)] px-3 py-1 rounded font-bold text-white hover:bg-red-600 transition"
+                                                    disabled={challengeSent === friend.id}
+                                                    className={`text-xs px-3 py-1 rounded font-bold transition ${
+                                                        challengeSent === friend.id
+                                                            ? 'bg-green-600 text-white cursor-default'
+                                                            : 'bg-[var(--accent-raw)] text-white hover:bg-red-600'
+                                                    }`}
                                                 >
-                                                    ⚔️ Challenge
+                                                    {challengeSent === friend.id ? '✓ Sent' : '⚔️ Challenge'}
                                                 </button>
                                                 <button
                                                     onClick={() => openTradeModal(friend)}
@@ -384,6 +445,43 @@ export function SocialScreen() {
                                                             className="rounded bg-red-600 px-3 py-1 text-xs font-bold text-white hover:bg-red-500"
                                                         >
                                                             ✕
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            {challenges.length > 0 && (
+                                <>
+                                    <div className="mt-6 pt-4 border-t border-white/10">
+                                        <h4 className="font-bold text-sm uppercase tracking-[0.1em] text-[var(--accent-raw)] mb-3">
+                                            ⚔️ Challenge Requests ({challenges.length})
+                                        </h4>
+                                        <div className="space-y-2">
+                                            {challenges.map(challenge => (
+                                                <div
+                                                    key={challenge.id}
+                                                    className="flex items-center justify-between p-3 rounded-lg bg-[var(--accent-raw)]/10 border border-[var(--accent-raw)]/30"
+                                                >
+                                                    <div>
+                                                        <p className="font-bold text-white">{challenge.challenger_name}</p>
+                                                        <p className="text-xs text-[var(--text-secondary)]">{challenge.challenger_trophy} 🏆</p>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => handleAcceptChallenge(challenge.id, challenge.challenger_id)}
+                                                            className="rounded bg-green-600 px-3 py-1 text-xs font-bold text-white hover:bg-green-500"
+                                                        >
+                                                            ✓ Accept
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleRejectChallenge(challenge.id)}
+                                                            className="rounded bg-red-600 px-3 py-1 text-xs font-bold text-white hover:bg-red-500"
+                                                        >
+                                                            ✕ Decline
                                                         </button>
                                                     </div>
                                                 </div>

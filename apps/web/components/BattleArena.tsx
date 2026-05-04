@@ -356,7 +356,7 @@ export function BattleArena({ userCard, opponentCard, onBattleComplete, onBack, 
 
     if (battleState === 'fighting') {
         return (
-            <div className="fixed inset-0 z-50 flex flex-col bg-black/95 p-4 overflow-hidden">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4 overflow-hidden">
                 <div className={`metal-panel chrome-border relative flex h-full max-h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-[32px] ${screenShake ? 'animate-shake' : ''}`}>
                     <button
                         onClick={onBack}

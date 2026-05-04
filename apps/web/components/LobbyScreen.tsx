@@ -61,9 +61,15 @@ export function LobbyScreen() {
 
         // Fetch lobby stats
         fetch(`http://localhost:8000/api/player/${pid}/lobby`)
-            .then(res => res.ok ? res.json() : null)
-            .then(json => { if (json) setLobbyStats(json); })
-            .catch(() => {});
+            .then(res => {
+                console.log('Lobby response status:', res.status);
+                return res.ok ? res.json() : null;
+            })
+            .then(json => { 
+                console.log('Lobby data:', json);
+                if (json) setLobbyStats(json); 
+            })
+            .catch(err => console.error('Lobby fetch error:', err));
         
         // Fetch top 3 leaderboard
         fetch(`http://localhost:8000/api/combat/leaderboard?limit=3`)
@@ -81,7 +87,7 @@ export function LobbyScreen() {
             <div className="mx-auto flex min-h-screen max-w-[1600px] flex-col px-4 pb-6 pt-4 lg:px-6">
                 <TopNavigation />
 
-                <section className="grid flex-1 gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
+                <section className="grid flex-1 gap-4 xl:grid-cols-[260px_minmax(0,1fr)_280px]">
                     {/* ── Player Card ── */}
                     <aside className="metal-panel chrome-border slide-in-panel relative overflow-hidden rounded-[28px] p-5">
                         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--accent-raw)] via-[var(--accent-gold)] to-[var(--accent-smackdown)]" />
@@ -90,9 +96,8 @@ export function LobbyScreen() {
                         </div>
                         <div className="mt-5 text-center">
                             <p className="font-[var(--font-heading)] text-2xl uppercase">
-                                {lobbyStats?.username ?? 'Player Card'}
+                                {lobbyStats?.username || 'Loading...'}
                             </p>
-                            <p className="text-sm text-[var(--text-secondary)]">Heavyweight Division</p>
                         </div>
 
                         <div className="mt-6 grid grid-cols-2 gap-3 text-center">
@@ -100,6 +105,7 @@ export function LobbyScreen() {
                                 ['W / L', total > 0 ? `${wins}/${losses}` : '0/0'],
                                 ['Coins', lobbyStats ? lobbyStats.coins.toLocaleString() : '—'],
                                 ['Trophies', lobbyStats ? String(lobbyStats.trophy) : '—'],
+                                ['Matches', String(total)],
                             ].map(([label, value]) => (
                                 <div key={label} className="rounded-2xl border border-white/8 bg-black/20 px-3 py-4">
                                     <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--text-secondary)]">{label}</p>
@@ -207,6 +213,21 @@ export function LobbyScreen() {
                             </article>
                         </section>
                     </section>
+
+                    {/* ── Right Sidebar (Backstage) ── */}
+                    <aside className="metal-panel chrome-border slide-in-panel rounded-[28px] p-5">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-[11px] uppercase tracking-[0.24em] text-[var(--text-secondary)]">Chat & Activity</p>
+                                <h3 className="font-[var(--font-heading)] text-2xl uppercase">Backstage</h3>
+                            </div>
+                            <button type="button" className="text-xs uppercase tracking-[0.22em] text-[var(--accent-smackdown)]">Open</button>
+                        </div>
+
+                        <div className="mt-5 flex items-center justify-center h-64 text-[var(--text-secondary)] text-sm">
+                            <p>Backstage coming soon...</p>
+                        </div>
+                    </aside>
                 </section>
             </div>
         </main>
